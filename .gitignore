@@ -1,0 +1,9 @@
+/working_models/
+/models/
+
+# Python junk
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
