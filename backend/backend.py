@@ -50,7 +50,7 @@ app.add_middleware(
 # =========================================================
 # Load model + prototypes
 # =========================================================
-MODEL_PATH = "../models/convnext_final_for_ood.pth"
+MODEL_PATH = "../models/convnext_5epoch.pth"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 checkpoint = torch.load(MODEL_PATH, map_location=device)
@@ -107,21 +107,22 @@ async def predict(file: UploadFile = File(...)):
         cosine_scores = torch.matmul(emb, prototypes.T)
         best_score, best_idx = cosine_scores.max(dim=1)
 
+
         # Debug logs (keep for now)
-        print("Cosine scores:", cosine_scores.cpu().numpy())
-        print("Best score:", best_score.item())
 
         # 3. Margin-based confidence
         top2 = torch.topk(cosine_scores, k=2, dim=1).values
         margin = (top2[:, 0] - top2[:, 1]).item()
-
         score = best_score.item()
+
+        print("Margin:", margin)
+        print("Best score:", best_score.item())
 
         # 4. OOD decision
         if score < OOD_THRESHOLD or margin < MARGIN_THRESHOLD:
             return {
                 "class_name": "UNKNOWN",
-                "confidence": round(score * 100, 2),
+                "confidence": round(score * 100, 2), # 0.01 
                 "ood": True
             }
         else:
