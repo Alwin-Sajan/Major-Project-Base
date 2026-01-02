@@ -7,6 +7,7 @@ from PIL import Image
 import torchvision.transforms as transforms
 import torch.nn as nn
 import torchvision
+from utils import store_unknown, checkClusterCondition, run_clustering
 
 # =========================================================
 # IMPORT MODEL (MATCH TRAINING CODE)
@@ -89,10 +90,10 @@ OOD_THRESHOLD = 0.65     # cosine similarity
 MARGIN_THRESHOLD = 0.15 # top1 - top2 gap
 
 # =========================================================
-# Prediction endpoint (OPEN-SET)
+# Prediction endpoint 
 # =========================================================
-@app.post("/predict")
-async def predict(file: UploadFile = File(...)):
+@app.post("/predictSimpleDetection")
+async def predictSimple(file: UploadFile = File(...)):
     image_data = await file.read()
     image = Image.open(io.BytesIO(image_data)).convert("RGB")
 
@@ -119,10 +120,11 @@ async def predict(file: UploadFile = File(...)):
         print("Best score:", best_score.item())
 
         # 4. OOD decision
+        print(margin)
         if score < OOD_THRESHOLD or margin < MARGIN_THRESHOLD:
             return {
                 "class_name": "UNKNOWN",
-                "confidence": round(score * 100, 2), # 0.01 
+                "confidence": round(score * 100, 2),
                 "ood": True
             }
         else:
@@ -131,6 +133,62 @@ async def predict(file: UploadFile = File(...)):
                 "confidence": round(score * 100, 2),
                 "ood": False
             }
+# =========================================================
+
+@app.post("/predictOODDetection")
+async def predictOOD(file: UploadFile = File(...)):
+    print("ood backnd")
+    #run_clustering()
+
+    image_data = await file.read()
+    image = Image.open(io.BytesIO(image_data)).convert("RGB")
+    img_tensor = transform(image).unsqueeze(0).to(device)
+
+    with torch.no_grad():
+        emb = embedding_net(img_tensor)
+        emb = F.normalize(emb, p=2, dim=1)
+
+        cosine_scores = torch.matmul(emb, prototypes.T)
+        best_score, best_idx = cosine_scores.max(dim=1)
+
+        top2 = torch.topk(cosine_scores, k=2, dim=1).values
+        margin = (top2[:, 0] - top2[:, 1]).item()
+        score = best_score.item()
+
+        if score < OOD_THRESHOLD or margin < MARGIN_THRESHOLD:
+            # ---- STORE UNKNOWN ----
+            store_unknown(
+                image=image,
+                embedding=emb.cpu().numpy(),
+                confidence=score
+            )
+
+            # ---- CHECK TRIGGERS ----
+            print("clustering")
+            do_cluster, reason = checkClusterCondition()
+            if do_cluster:
+                run_clustering()
+
+            return {
+                "class_name": "UNKNOWN",
+                "confidence": 0.01,
+                "ood": True
+            }
+
+        return {
+            "class_name": class_names[best_idx.item()],
+            "confidence": round(score * 100, 2),
+            "ood": False
+        }
+
+
+# =========================================================
+
+@app.get("/testing")
+async def testing():
+    import utils, os
+    os.makedirs(utils.IMG_DIR, exist_ok=True)
+    return {"code" : "nd"}
 
 # =========================================================
 # Run server
