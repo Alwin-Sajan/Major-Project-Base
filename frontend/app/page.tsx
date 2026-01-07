@@ -22,6 +22,14 @@ export default function EntryPage() {
         </button>
       </Link>
 
+      {/* Button 3 */}
+      <Link href="/taxonomy-bot">
+        <button className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-lg transition-colors duration-300">
+          taxonomy bot
+        </button>
+      </Link>
+
+
 
       </div>
     </div>

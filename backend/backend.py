@@ -12,6 +12,7 @@ from utils import store_unknown, checkClusterCondition, run_clustering
 # =========================================================
 # IMPORT MODEL (MATCH TRAINING CODE)
 # =========================================================
+
 class ConvNeXtIncremental(nn.Module):
     def __init__(self, embedding_dim=256, pretrained=True):
         super().__init__()
