@@ -1,6 +1,7 @@
 import json, os
 import numpy as np
 from sklearn.cluster import DBSCAN
+from hdbscan import HDBSCAN
 from utils.config import *
 from utils.unknown_buffer import update_last_cluster_time
 

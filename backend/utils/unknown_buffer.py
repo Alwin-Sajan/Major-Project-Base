@@ -21,7 +21,6 @@ def store_unknown(image: Image.Image, embedding: np.ndarray, confidence: float):
         new = np.vstack([old, embedding])
     else:
         new = embedding
-
     np.save(EMB_PATH, new)
 
     # 3. Save metadata

@@ -15,6 +15,8 @@ const MarineChatbot = () => {
   const fileInputRef = useRef(null)
   const imageInputRef = useRef(null)
   const messagesEndRef = useRef(null)
+  const abortControllerRef = useRef(null);
+
 
   // Matches your backend endpoint exactly
   const API_BASE_URL = 'http://localhost:8001/taxonomyChat'
@@ -91,6 +93,16 @@ const MarineChatbot = () => {
   }
 
   const handleSend = async () => {
+  
+    if (isTyping) {
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+          abortControllerRef.current = null;
+          setIsTyping(false);
+        }
+        return;
+    }
+  
     if (!input.trim() && attachments.length === 0) return
 
     // 1. Prepare User Message

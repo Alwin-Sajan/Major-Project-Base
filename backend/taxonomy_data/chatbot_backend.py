@@ -9,11 +9,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 from fastapi import FastAPI, Form, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, PlainTextResponse
+import utils
 
 # ---------- CONFIG ----------
-DB_FAISS_PATH = r"/home/abk/abk/projects/Major-project-basic-ui/backend/vectorstore/"
-MODEL_NAME = "llama3.1:8b-instruct-q4_K_M"
-CHAT_TYPE_DETECTION = r"/home/abk/abk/projects/Major-project-basic-ui/backend/vectorstore/chat_type_detection_embed.npz"
 
 
 #------------ FUNCTIONS ------------------
@@ -23,7 +21,7 @@ class TaxonomyChatType(Enum):
     TAXONOMY_FROM_FEATURES = "taxonomy_from_features"
 
 def Load_ChatType_Embed():
-    with np.load(CHAT_TYPE_DETECTION) as data:
+    with np.load(utils.CHAT_TYPE_DETECTION) as data:
         return {TaxonomyChatType(intent): data[intent] for intent in data.files}
 
 def get_ChatType(query):
@@ -31,7 +29,7 @@ def get_ChatType(query):
     best_intent = "taxonomy_from_species" # Default fallback
     highest_score = 0
     
-    for intent, vectors in test_vectors.items():
+    for intent, vectors in chat_route_vectors.items():
         scores = cosine_similarity(query_vec, vectors)
         max_score = np.max(scores)
         if max_score > highest_score:
@@ -44,28 +42,27 @@ def get_ChatType(query):
 
 # Load embeddings
 embeddings = HuggingFaceEmbeddings(
-    model_name="BAAI/bge-large-en-v1.5",
+    model_name=utils.EMBEDDING_E5_LARGE,   
     model_kwargs={"device": "cuda"},
     encode_kwargs={"normalize_embeddings": True},
 )
 
 # Load vectorstore
 vectorstore = FAISS.load_local(
-    DB_FAISS_PATH,
+    utils.DB_FAISS_PATH,
     embeddings,
     allow_dangerous_deserialization=True
 )
 
-# Load chat model (STREAMING ENABLED)
 llm = ChatOllama(
-    model=MODEL_NAME,
+    model=utils.MODEL_NAME,
     temperature=0.0,
     disable_streaming=False,
     seed=43,
     #num_predict=100
 )
 
-test_vectors =  Load_ChatType_Embed()
+chat_route_vectors =  Load_ChatType_Embed()
 
 
 app = FastAPI()
@@ -84,11 +81,13 @@ app.add_middleware(
 @app.post("/taxonomyChat")
 async def taxonomyChat(user_input: str = Form(...), files: List[UploadFile] = File([]) ):
     
-    #TODO:thampuran ariya
+
     if files:  
+        print(files)
         return {"error": "Not implemented"} 
     
     intent = get_ChatType(user_input)
+    print(intent)
 
     if intent == TaxonomyChatType.SMALL_TALK:
         messages = [
@@ -108,10 +107,11 @@ async def taxonomyChat(user_input: str = Form(...), files: List[UploadFile] = Fi
         ]
         
     elif intent == TaxonomyChatType.TAXONOMY_FROM_SPECIES:
-        print(TaxonomyChatType.TAXONOMY_FROM_SPECIES)
         docs_and_scores = vectorstore.similarity_search_with_score(user_input, k=3)
-        if docs_and_scores[0][1] > 0.8: 
-            return PlainTextResponse("I cannot identify this specimen from the provided data.")
+        # best_dist = docs_and_scores[0][1]
+        # second_dist = docs_and_scores[1][1]
+        # if docs_and_scores[0][1] > 0.8 or (second_dist - best_dist) < 0.05: 
+        #     return PlainTextResponse("I cannot identify this specimen from the provided data.")
             
         context = "\n\n".join(
             f"[Doc {i+1}]\n{d[0].page_content}"
@@ -132,10 +132,11 @@ async def taxonomyChat(user_input: str = Form(...), files: List[UploadFile] = Fi
         ]
 
     elif intent == TaxonomyChatType.TAXONOMY_FROM_FEATURES:
-        print(TaxonomyChatType.TAXONOMY_FROM_FEATURES)
         docs_and_scores = vectorstore.similarity_search_with_score(user_input, k=12)
-        if docs_and_scores[0][1] > 0.8: 
-            return PlainTextResponse("I cannot identify this specimen from the provided data.")
+        # best_dist = docs_and_scores[0][1]
+        # second_dist = docs_and_scores[1][1]
+        # if docs_and_scores[0][1] > 0.8 or (second_dist - best_dist) < 0.05: 
+        #     return PlainTextResponse("I cannot identify this specimen from the provided data.")
             
         context = "\n\n".join(
             f"[Doc {i+1}]\n{d[0].page_content}"
@@ -171,4 +172,4 @@ async def taxonomyChat(user_input: str = Form(...), files: List[UploadFile] = Fi
 # =========================================================
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run(app, host="0.0.0.0", port=8001, reload=True)

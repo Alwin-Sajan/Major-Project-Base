@@ -124,7 +124,7 @@ async def predictSimple(file: UploadFile = File(...)):
         print(margin)
         if score < OOD_THRESHOLD or margin < MARGIN_THRESHOLD:
             return {
-                "class_name": "UNKNOWN",
+                "class_name": class_names[best_idx.item()],
                 "confidence": round(score * 100, 2),
                 "ood": True
             }
@@ -188,8 +188,9 @@ async def predictOOD(file: UploadFile = File(...)):
 @app.get("/testing")
 async def testing():
     import utils, os
-    os.makedirs(utils.IMG_DIR, exist_ok=True)
-    return {"code" : "nd"}
+    for image in os.listdir(utils.IMG_DIR):
+        print(image)
+    
 
 # =========================================================
 # Run server
