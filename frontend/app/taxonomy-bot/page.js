@@ -19,7 +19,7 @@ const MarineChatbot = () => {
 
 
   // Matches your backend endpoint exactly
-  const API_BASE_URL = 'http://localhost:8001/taxonomyChat'
+  const API_BASE_URL = 'http://localhost:8000/taxonomyChat'
 
   const currentConv = conversations.find(c => c.id === currentConvId)
   const messages = currentConv?.messages || []

@@ -6,13 +6,13 @@ from langchain_ollama import ChatOllama
 from langchain_classic.schema import SystemMessage, HumanMessage
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
-from fastapi import FastAPI, Form, UploadFile, File
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, PlainTextResponse
+from fastapi import APIRouter, Form, UploadFile, File
+from fastapi.responses import StreamingResponse
 import utils
 
 # ---------- CONFIG ----------
 
+chatbot_router = APIRouter()
 
 #------------ FUNCTIONS ------------------
 class TaxonomyChatType(Enum):
@@ -65,20 +65,9 @@ llm = ChatOllama(
 chat_route_vectors =  Load_ChatType_Embed()
 
 
-app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
 # ----------------------------------------
 
-@app.post("/taxonomyChat")
+@chatbot_router.post("/taxonomyChat")
 async def taxonomyChat(user_input: str = Form(...), files: List[UploadFile] = File([]) ):
     
 
@@ -155,8 +144,6 @@ async def taxonomyChat(user_input: str = Form(...), files: List[UploadFile] = Fi
                 f"Context:\n{context}\n\nQuestion:\n{user_input}"
             )
         ]
-
-
     async def event_stream():
         full_response = ""
         async for chunk in llm.astream(messages):
@@ -166,10 +153,3 @@ async def taxonomyChat(user_input: str = Form(...), files: List[UploadFile] = Fi
 
     return StreamingResponse(event_stream(), media_type="text/plain")
 
-
-# =========================================================
-# Run server
-# =========================================================
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001, reload=True)

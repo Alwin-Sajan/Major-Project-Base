@@ -1,6 +1,7 @@
 import json, os
 import numpy as np
 from sklearn.cluster import DBSCAN
+from sklearn.preprocessing import normalize
 from hdbscan import HDBSCAN
 from utils.config import *
 from utils.unknown_buffer import update_last_cluster_time
@@ -10,11 +11,12 @@ def run_clustering():
         return
 
     embs = np.load(EMB_PATH)
+    embs = normalize(embs, axis=1) 
 
     # DBSCAN works well for unknown discovery
     clusterer = DBSCAN(
-        eps=0.45,
-        min_samples=2,
+        eps=0.1,
+        min_samples=5,
         metric="cosine"
     )
 
