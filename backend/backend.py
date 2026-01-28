@@ -124,7 +124,7 @@ async def predictSimple(file: UploadFile = File(...)):
         print(margin)
         if score < OOD_THRESHOLD or margin < MARGIN_THRESHOLD:
             return {
-                "class_name": "UNKNOWN",
+                "class_name": class_names[best_idx.item()],
                 "confidence": round(score * 100, 2),
                 "ood": True
             }
@@ -185,11 +185,61 @@ async def predictOOD(file: UploadFile = File(...)):
 
 # =========================================================
 
+@app.get("/runcluster")
+async def runcluster():
+    print("staring clustering")
+    run_clustering()
+    print("ending clustering")
+    return {None}
+
+
 @app.get("/testing")
 async def testing():
-    import utils, os
-    os.makedirs(utils.IMG_DIR, exist_ok=True)
-    return {"code" : "nd"}
+    import os
+
+    PATH = r"/media/abk/New Disk/DATASETS/clusterdataset" 
+    for image_name in os.listdir(PATH):
+        full_path = os.path.join(PATH,image_name)
+        image = Image.open(full_path).convert("RGB")
+        img_tensor = transform(image).unsqueeze(0).to(device)
+
+        with torch.no_grad():
+            emb = embedding_net(img_tensor)
+            emb = F.normalize(emb, p=2, dim=1)
+            cosine_scores = torch.matmul(emb, prototypes.T)
+            best_score, best_idx = cosine_scores.max(dim=1)
+            store_unknown(
+                image=image,
+                embedding=emb.cpu().numpy(),
+                confidence=best_score.item()    
+            )
+    return {None}
+
+
+@app.get("/testingifAnImageisKNOWN")
+async def testingifAnImageisKNOWN():
+    import os
+
+    PATH = r"/media/abk/New Disk/DATASETS/clusterdataset" 
+    for image_name in os.listdir(PATH):
+        full_path = os.path.join(PATH,image_name)
+        image = Image.open(full_path).convert("RGB")
+        img_tensor = transform(image).unsqueeze(0).to(device)
+
+        with torch.no_grad():
+            emb = embedding_net(img_tensor)
+            emb = F.normalize(emb, p=2, dim=1)
+            cosine_scores = torch.matmul(emb, prototypes.T)
+            best_score, best_idx = cosine_scores.max(dim=1)
+            top2 = torch.topk(cosine_scores, k=2, dim=1).values
+            margin = (top2[:, 0] - top2[:, 1]).item()
+            score = best_score.item()
+            if score < OOD_THRESHOLD or margin < MARGIN_THRESHOLD:
+                ...
+            else:
+                print(f"{class_names[best_idx.item()]} ({round(score * 100, 2)}) -- ",full_path)
+
+    return {None}
 
 # =========================================================
 # Run server

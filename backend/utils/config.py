@@ -10,6 +10,19 @@ EMB_PATH = f"{UNKNOWN_DIR}/embeddings.npy"
 META_PATH = f"{UNKNOWN_DIR}/metadata.json"
 CLUSTER_META_PATH = f"{UNKNOWN_DIR}/clusters.json"
 LAST_CLUSTER_TIME_PATH = f"{UNKNOWN_DIR}/last_cluster_time.txt"
+
+
 DB_FAISS_PATH = r"/home/abk/abk/projects/Major-project-basic-ui/backend/vectorstore/"
-MODEL_NAME = "llama3.1:8b-instruct-q4_K_M"
 CHAT_TYPE_DETECTION = r"/home/abk/abk/projects/Major-project-basic-ui/backend/vectorstore/chat_type_detection_embed.npz"
+
+
+# ----- Models ------
+MODEL_NAME = "llama3.1:8b-instruct-q4_K_M"
+EMBEDDING_BGE_LARGE = "BAAI/bge-large-en-v1.5"
+EMBEDDING_E5_LARGE = "intfloat/e5-large-v2"
+EMBEDDING_NVIDIA_LLAMA_NEMOTRON = "nvidia/llama-nemotron-embed-1b-v2"
+EMBEDDING_MXBAI = "mixedbread-ai/mxbai-embed-large-v1"
+EMBEDDING_NOMIC_TEXT_V2_MOE = "nomic-ai/nomic-embed-text-v2-moe"
+EMBEDDING_SNOWFLAKE_ARTIC_LARGE = "Snowflake/snowflake-arctic-embed-l-v2.0"
+EMBEDDING_SNOWFLAKE_ARTIC_MEDIUM = "Snowflake/snowflake-arctic-embed-m-v2.0"
+EMBEDDING_BGE_M3 = "BAAI/bge-m3"

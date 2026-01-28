@@ -28,27 +28,34 @@ import torch
 #     print("Checkpoint is not a dict. Cannot inspect keys.")
 
 
-from backend.train_resnet_embeddings import ResNet18Embedding, ClassifierHead, build_prototypes_from_loader, make_dataloaders
+# from backend.train_resnet_embeddings import ResNet18Embedding, ClassifierHead, build_prototypes_from_loader, make_dataloaders
 
 
-embedding_dim = 128
-batch_size = 32
-lr = 5e-4
-epochs = 50
-min_delta = 1e-4  # minimum meaningful improvement
-data_root = "/media/abk/New Disk/DATASETS/first/updatedDataset" 
+# embedding_dim = 128
+# batch_size = 32
+# lr = 5e-4
+# epochs = 50
+# min_delta = 1e-4  # minimum meaningful improvement
+# data_root = "/media/abk/New Disk/DATASETS/first/updatedDataset" 
 
-emb_net = ResNet18Embedding(embedding_dim=embedding_dim, use_cbam=True, pretrained=True)
-clf = ClassifierHead(embedding_dim, 23)
-train_loader, val_loader, classes = make_dataloaders(data_root, img_size=224, batch_size=batch_size)
+# emb_net = ResNet18Embedding(embedding_dim=embedding_dim, use_cbam=True, pretrained=True)
+# clf = ClassifierHead(embedding_dim, 23)
+# train_loader, val_loader, classes = make_dataloaders(data_root, img_size=224, batch_size=batch_size)
 
-ckpt = torch.load('models/best_supervised.pth', map_location="cuda")
-emb_net.load_state_dict(ckpt['emb_state'])
-clf.load_state_dict(ckpt['clf_state'])
-emb_net.to("cuda"); emb_net.eval()
+# ckpt = torch.load('models/best_supervised.pth', map_location="cuda")
+# emb_net.load_state_dict(ckpt['emb_state'])
+# clf.load_state_dict(ckpt['clf_state'])
+# emb_net.to("cuda"); emb_net.eval()
 
-# Build prototypes from train set (or exemplar set)
-prototypes = build_prototypes_from_loader(emb_net, train_loader, 23, device="cuda")
+# # Build prototypes from train set (or exemplar set)
+# prototypes = build_prototypes_from_loader(emb_net, train_loader, 23, device="cuda")
 
-cosine_scores = torch.matmul(emb_net, prototypes.T)
-print("Cosine scores:", cosine_scores.cpu().numpy())
+# cosine_scores = torch.matmul(emb_net, prototypes.T)
+# print("Cosine scores:", cosine_scores.cpu().numpy())
+
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
+
+embs = np.load("/home/abk/abk/projects/Major-project-basic-ui/backend/unknown_buffer/embeddings.npy")
+sim = cosine_similarity(embs)
+print(sim.min(), sim.mean(), sim.max())

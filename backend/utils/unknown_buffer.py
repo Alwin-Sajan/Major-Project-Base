@@ -9,11 +9,12 @@ os.makedirs(IMG_DIR, exist_ok=True)
 # Store unknown sample
 # ------------------------------------------------
 def store_unknown(image: Image.Image, embedding: np.ndarray, confidence: float):
+    from uuid import uuid4
     ts = time.strftime("%Y_%m_%d_%H_%M_%S")
-    fname = f"{ts}.jpg"
+    fname = f"{ts}_{uuid4().hex}.jpg"
 
     # 1. Save image
-    image.save(os.path.join(IMG_DIR, fname))
+    #image.save(os.path.join(IMG_DIR, fname))
 
     # 2. Save embedding
     if os.path.exists(EMB_PATH):
@@ -21,7 +22,6 @@ def store_unknown(image: Image.Image, embedding: np.ndarray, confidence: float):
         new = np.vstack([old, embedding])
     else:
         new = embedding
-
     np.save(EMB_PATH, new)
 
     # 3. Save metadata
