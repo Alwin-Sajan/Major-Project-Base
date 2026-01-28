@@ -15,8 +15,7 @@ def run_clustering():
 
     # DBSCAN works well for unknown discovery
     clusterer = DBSCAN(
-        eps=0.1,
-        min_samples=5,
+        eps=0.2,min_samples=3,
         metric="cosine"
     )
 

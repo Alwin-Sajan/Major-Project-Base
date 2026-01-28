@@ -187,7 +187,9 @@ async def predictOOD(file: UploadFile = File(...)):
 
 @app.get("/runcluster")
 async def runcluster():
+    print("staring clustering")
     run_clustering()
+    print("ending clustering")
     return {None}
 
 
