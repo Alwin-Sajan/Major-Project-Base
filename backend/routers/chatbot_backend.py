@@ -95,7 +95,7 @@ async def taxonomyChat(user_input: str = Form(...), files: List[UploadFile] = Fi
             )
         ]
         
-    elif intent == TaxonomyChatType.TAXONOMY_FROM_SPECIES:
+    elif intent == TaxonomyChatType.TAXONOMY_FROM_SPECIES or intent == TaxonomyChatType.TAXONOMY_FROM_FEATURES:
         docs_and_scores = vectorstore.similarity_search_with_score(user_input, k=3)
         # best_dist = docs_and_scores[0][1]
         # second_dist = docs_and_scores[1][1]
@@ -120,30 +120,31 @@ async def taxonomyChat(user_input: str = Form(...), files: List[UploadFile] = Fi
             )
         ]
 
-    elif intent == TaxonomyChatType.TAXONOMY_FROM_FEATURES:
-        docs_and_scores = vectorstore.similarity_search_with_score(user_input, k=12)
-        # best_dist = docs_and_scores[0][1]
-        # second_dist = docs_and_scores[1][1]
-        # if docs_and_scores[0][1] > 0.8 or (second_dist - best_dist) < 0.05: 
-        #     return PlainTextResponse("I cannot identify this specimen from the provided data.")
+    # elif intent == TaxonomyChatType.TAXONOMY_FROM_FEATURES:
+    #     docs_and_scores = vectorstore.similarity_search_with_score(user_input, k=12)
+    #     # best_dist = docs_and_scores[0][1]
+    #     # second_dist = docs_and_scores[1][1]
+    #     # if docs_and_scores[0][1] > 0.8 or (second_dist - best_dist) < 0.05: 
+    #     #     return PlainTextResponse("I cannot identify this specimen from the provided data.")
             
-        context = "\n\n".join(
-            f"[Doc {i+1}]\n{d[0].page_content}"
-            for i, d in enumerate(docs_and_scores)
-        )
+    #     context = "\n\n".join(
+    #         f"[Doc {i+1}]\n{d[0].page_content}"
+    #         for i, d in enumerate(docs_and_scores)
+    #     )
 
-        messages = [
-            SystemMessage(
-                "You are an expert Marine Taxonomist. You should explain about species when their name is given"
-                "You MUST answer using ONLY the provided context. "
-                "If the answer is not present, reply exactly:\n"
-                "'I cannot identify this specimen from the provided data.'"
-                "Dont specify from which doc it is specified or how you found it. Just tell the answer in a pleasent humanly way like taking to someone.But keep it short"
-            ),
-            HumanMessage(
-                f"Context:\n{context}\n\nQuestion:\n{user_input}"
-            )
-        ]
+    #     messages = [
+    #         SystemMessage(
+    #             "You are an expert Marine Taxonomist. You should explain about species when their name is given"
+    #             "You MUST answer using ONLY the provided context. "
+    #             "If the answer is not present, reply exactly:\n"
+    #             "'I cannot identify this specimen from the provided data.'"
+    #             "Dont specify from which doc it is specified or how you found it. Just tell the answer in a pleasent humanly way like taking to someone.But keep it short"
+    #         ),
+    #         HumanMessage(
+    #             f"Context:\n{context}\n\nQuestion:\n{user_input}"
+    #         )
+    #     ]
+
     async def event_stream():
         full_response = ""
         async for chunk in llm.astream(messages):
