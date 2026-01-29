@@ -69,8 +69,8 @@ async def predictSimple(file: UploadFile = File(...)):
         print(margin)
         if score < utils.OOD_THRESHOLD or margin < utils.MARGIN_THRESHOLD:
             return {
-                "class_name": class_names[best_idx.item()],
-                "confidence": round(score * 100, 2),
+                "class_name": "UNKNOWN",
+                "confidence": 0.01,
                 "ood": True
             }
         else:
