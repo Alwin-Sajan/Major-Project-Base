@@ -69,11 +69,11 @@ def run_clustering():
 
     # DBSCAN works well for unknown discovery
     clusterer = DBSCAN(
-        eps=0.2,min_samples=3,
+        eps=0.25,min_samples=4,
         metric="cosine"
     )
 
-    labels = clusterer.fit_predict(embs) ;print(labels)
+    labels = clusterer.fit_predict(embs)
 
     # Save cluster assignments
     clusters = {}

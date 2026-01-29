@@ -103,6 +103,10 @@ async def predictOOD(file: UploadFile = File(...)):
 
         if score < utils.OOD_THRESHOLD or margin < utils.MARGIN_THRESHOLD:
             # ---- STORE UNKNOWN ----
+            default_embed = utils.embedding_PRETRAINED_DEFAULT
+            emb = default_embed(img_tensor)
+            emb = F.normalize(emb, p=2, dim=1)
+            
             utils.store_unknown(
                 image=image,
                 embedding=emb.cpu().numpy(),

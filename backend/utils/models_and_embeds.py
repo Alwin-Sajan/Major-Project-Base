@@ -45,3 +45,6 @@ embedding_net = ConvNeXtIncremental(
 
 embedding_net.load_state_dict(checkpoint["model_state"])
 embedding_net.to("cuda").eval()
+
+embedding_PRETRAINED_DEFAULT = ConvNeXtIncremental(embedding_dim=256,pretrained=True)
+embedding_PRETRAINED_DEFAULT.to("cuda").eval()

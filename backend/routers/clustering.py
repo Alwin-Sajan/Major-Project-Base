@@ -6,22 +6,18 @@ import torchvision.transforms as transforms
 import torch.nn.functional as F
 from PIL import Image
 from fastapi import HTTPException
-from fastapi.staticfiles import StaticFiles
 from fastapi import APIRouter
 
 
 # --- CONFIGURATION ---
-IMG_DIR =  r"/media/abk/New Disk/DATASETS/clusterdataset" #NOTE:utils.IMG_DIR
-
 device = utils.device
 embedding_net = utils.embedding_net
 prototypes = utils.prototypes
 class_names = utils.class_names
 
 clustering_router = APIRouter()
-clustering_router.mount("/images", StaticFiles(directory=IMG_DIR), name="images")
 #------------------------
-
+IMG_DIR =  r"/media/abk/New Disk/DATASETS/clusterdataset" #NOTE:utils.IMG_DIR, CHANGE IT IN FUTURE< ONLY FOR TESTING
 
 # ================================
 
@@ -47,6 +43,12 @@ def get_data():
 
 
 # ==============================
+@clustering_router.get("/sampleclusterTest")
+async def runcluster():
+    print("clustering api works")
+    return {None}
+
+
 
 @clustering_router.get("/runcluster")
 async def runcluster():
@@ -62,13 +64,15 @@ async def testing():
 
     PATH = r"/media/abk/New Disk/DATASETS/clusterdataset" 
     for image_name in os.listdir(PATH):
+        
         full_path = os.path.join(PATH,image_name)
         image = Image.open(full_path).convert("RGB")
         img_tensor = transform(image).unsqueeze(0).to(device)
 
         with torch.no_grad():
-            emb = utils.embedding_net(img_tensor)
-            emb = F.normalize(emb, p=2, dim=1)
+            default_embed = utils.embedding_PRETRAINED_DEFAULT
+            emb = default_embed(img_tensor)
+            emb = F.normalize(emb, p=2, dim=1) #
             cosine_scores = torch.matmul(emb, prototypes.T)
             best_score, best_idx = cosine_scores.max(dim=1)
             utils.store_unknown(
@@ -76,6 +80,7 @@ async def testing():
                 embedding=emb.cpu().numpy(),
                 confidence=best_score.item()    
             )
+
     return {None}
 
 
@@ -106,10 +111,10 @@ async def testingifAnImageisKNOWN():
 
 
 
-clustering_router.get("/clusters")
+@clustering_router.get("/clusters")
 def get_all_clusters():
     """Returns a list of clusters with a 'cover' image for the UI"""
-    clusters, all_images = get_data()
+    clusters, all_images = get_data() ; print(all_images)
     summary = []
     
     for c_id, indices in clusters.items():
@@ -122,7 +127,7 @@ def get_all_clusters():
         })
     return summary
 
-clustering_router.get("/clusters/{cluster_id}")
+@clustering_router.get("/clusters/{cluster_id}")
 def get_cluster_details(cluster_id: str):
     """Returns all image URLs for a specific cluster"""
     clusters, all_images = get_data()
