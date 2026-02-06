@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Waves, Fish, LayoutGrid, ArrowLeft, Image as ImageIcon, Loader2, Info, AlertCircle } from 'lucide-react';
+import { Check, Fish, LayoutGrid, ArrowLeft, Image as ImageIcon, Loader2, Pencil, AlertCircle } from 'lucide-react';
+
 
 interface ClusterSummary {
   id: string;
@@ -20,6 +21,8 @@ export default function ClusterViewUI() {
   const [selectedCluster, setSelectedCluster] = useState<ClusterDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
 
   const API_BASE = "http://127.0.0.1:8000";
 
@@ -30,7 +33,7 @@ export default function ClusterViewUI() {
 
   const fetchClusters = async () => {
     setIsLoading(true);
-    setSelectedCluster(null);
+    // setSelectedCluster(null); // <-- REMOVE OR COMMENT THIS LINE
     try {
       const res = await fetch(`${API_BASE}/clusters`);
       if (!res.ok) throw new Error("Failed to fetch clusters");
@@ -41,7 +44,7 @@ export default function ClusterViewUI() {
     } finally {
       setIsLoading(false);
     }
-  };
+};
 
   const fetchClusterDetail = async (clusterId: string) => {
     setIsLoading(true);
@@ -54,6 +57,43 @@ export default function ClusterViewUI() {
       setError("Failed to load images for this cluster.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleRename = async (oldId: string) => {
+    if (!editValue.trim() || editValue === oldId) {
+      setEditingId(null);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/clusters/${oldId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ new_name: editValue.trim() }),
+      });
+
+      if (!res.ok) throw new Error("Rename failed");
+      const data = await res.json();
+      
+      // 1. Update the Detail View state locally so we stay on this page
+      if (selectedCluster) {
+        setSelectedCluster({
+          ...selectedCluster,
+          cluster: data.new_id // Use the new name from backend response
+        });
+      }
+
+      // 2. Silently update the background list without resetting selection
+      const listRes = await fetch(`${API_BASE}/clusters`);
+      if (listRes.ok) {
+        const newList = await listRes.json();
+        setClusters(newList);
+      }
+
+      setEditingId(null);
+    } catch (err) {
+      setError("Failed to rename cluster.");
     }
   };
 
@@ -80,14 +120,14 @@ export default function ClusterViewUI() {
                 <p className="text-xs text-slate-400">DBSCAN + ConvNeXt Embedding Visualization</p>
               </div>
             </div>
-            {selectedCluster && (
-              <button 
-                onClick={fetchClusters}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors border border-slate-700"
-              >
-                <ArrowLeft className="w-4 h-4" /> Back to Grid
-              </button>
-            )}
+              {selectedCluster && (
+                <button 
+                  onClick={() => setSelectedCluster(null)} // Explicitly set to null here
+                  className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors border border-slate-700"
+                >
+                  <ArrowLeft className="w-4 h-4" /> Back to Grid
+                </button>
+              )}
           </div>
         </div>
       </header>
@@ -144,7 +184,37 @@ export default function ClusterViewUI() {
           <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
             <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-800 flex items-center justify-between">
               <div>
-                <h2 className="text-3xl font-bold text-white uppercase">{selectedCluster.cluster.replace('_', ' ')}</h2>
+                <div className="flex items-center gap-3">
+                  {editingId === selectedCluster.cluster ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        autoFocus
+                        className="bg-slate-800 border border-blue-500 rounded px-2 py-1 text-2xl font-bold outline-none"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleRename(selectedCluster.cluster)}
+                      />
+                      <button onClick={() => handleRename(selectedCluster.cluster)} className="p-2 bg-green-500/20 text-green-400 rounded-lg">
+                        <Check className="w-6 h-6" />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <h2 className="text-3xl font-bold text-white uppercase">
+                        {selectedCluster.cluster.replace('_', ' ')}
+                      </h2>
+                      <button 
+                        onClick={() => {
+                          setEditingId(selectedCluster.cluster);
+                          setEditValue(selectedCluster.cluster);
+                        }}
+                        className="p-1.5 text-slate-500 hover:text-blue-400 transition-colors"
+                      >
+                        <Pencil className="w-5 h-5" />
+                      </button>
+                    </>
+                  )}
+                </div>
                 <p className="text-slate-400">Showing {selectedCluster.total} images grouped in this density zone.</p>
               </div>
               <div className="hidden md:flex gap-4">

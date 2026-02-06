@@ -5,7 +5,7 @@ import utils
 import torchvision.transforms as transforms
 import torch.nn.functional as F
 from PIL import Image
-from fastapi import HTTPException
+from fastapi import HTTPException, Body
 from fastapi import APIRouter
 
 
@@ -53,6 +53,7 @@ async def runcluster():
 @clustering_router.get("/runcluster")
 async def runcluster():
     print("staring clustering")
+    #utils.run_clustering()
     utils.run_clustering()
     print("ending clustering")
     return {None}
@@ -61,7 +62,7 @@ async def runcluster():
 @clustering_router.get("/testing")
 async def testing():
     import os
-
+    count = 0
     PATH = r"/media/abk/New Disk/DATASETS/clusterdataset" 
     for image_name in os.listdir(PATH):
         
@@ -80,8 +81,14 @@ async def testing():
                 embedding=emb.cpu().numpy(),
                 confidence=best_score.item()    
             )
+            count+=1
 
-    return {None}
+    #Cluster update
+    print("staring clustering")
+    utils.run_clustering()
+    print("ending clustering")
+
+    return {count}
 
 
 @clustering_router.get("/testingifAnImageisKNOWN")
@@ -114,8 +121,10 @@ async def testingifAnImageisKNOWN():
 @clustering_router.get("/clusters")
 def get_all_clusters():
     """Returns a list of clusters with a 'cover' image for the UI"""
-    clusters, all_images = get_data() ; print(all_images)
+    clusters, all_images = get_data() 
     summary = []
+
+    clusters = clusters["clusters"]
     
     for c_id, indices in clusters.items():
         if not indices: continue
@@ -131,6 +140,8 @@ def get_all_clusters():
 def get_cluster_details(cluster_id: str):
     """Returns all image URLs for a specific cluster"""
     clusters, all_images = get_data()
+
+    clusters = clusters["clusters"]
     
     if cluster_id not in clusters:
         raise HTTPException(status_code=404, detail="Cluster not found")
@@ -143,3 +154,25 @@ def get_cluster_details(cluster_id: str):
         "total": len(indices),
         "images": image_urls
     }
+
+@clustering_router.patch("/clusters/{cluster_id}")
+def update_cluster_name(cluster_id: str, new_name: str = Body(..., embed=True)):
+    with open(utils.CLUSTER_META_PATH, "r") as f:
+        clusters = json.load(f)
+    
+    #clusters = clusters["clusters"]
+
+    if cluster_id not in clusters["clusters"]:
+        raise HTTPException(status_code=404, detail="Cluster not found")
+
+    # Update clusters mapping
+    clusters["clusters"][new_name] = clusters["clusters"].pop(cluster_id)
+    
+    # Update cluster_info mapping if it exists
+    if "cluster_info" in clusters["clusters"] and cluster_id in clusters["cluster_info"]:
+        clusters["clusters"]["cluster_info"][new_name] = clusters["clusters"]["cluster_info"].pop(cluster_id)
+
+    with open(utils.CLUSTER_META_PATH, "w") as f:
+        json.dump(clusters, f, indent=2)
+
+    return {"message": "Updated successfully", "new_id": new_name}
