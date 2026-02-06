@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Check, Fish, LayoutGrid, ArrowLeft, Image as ImageIcon, Loader2, Pencil, AlertCircle } from 'lucide-react';
-
+import { Check, Fish, LayoutGrid, ArrowLeft, Image as ImageIcon, Loader2, Pencil, AlertCircle,ZoomIn, ZoomOut, RotateCcw,X } from 'lucide-react';
+import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 
 interface ClusterSummary {
   id: string;
@@ -23,6 +23,7 @@ export default function ClusterViewUI() {
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
 
   const API_BASE = "http://127.0.0.1:8000";
 
@@ -227,7 +228,13 @@ export default function ClusterViewUI() {
 
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {selectedCluster.images.map((url, index) => (
-                <div key={index} className="group relative aspect-square rounded-xl overflow-hidden border border-slate-800 bg-slate-900 shadow-xl">
+                <div 
+                  key={index} 
+                  // ADD THIS LINE:
+                  onClick={() => setViewingImage(`${API_BASE}${url}`)} 
+                  // ADD 'cursor-zoom-in' TO CLASSNAME:
+                  className="group relative aspect-square rounded-xl overflow-hidden border border-slate-800 bg-slate-900 shadow-xl cursor-zoom-in"
+                >
                   <img 
                     src={`${API_BASE}${url}`} 
                     alt={`Item ${index}`} 
@@ -242,6 +249,52 @@ export default function ClusterViewUI() {
           </div>
         )}
       </main>
+
+      {viewingImage && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-xl">
+    {/* Close Button */}
+    <button 
+      onClick={() => setViewingImage(null)}
+      className="absolute top-6 right-6 z-[70] p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors text-white"
+    >
+      <X className="w-8 h-8" />
+    </button>
+
+    <TransformWrapper
+      initialScale={1}
+      minScale={0.5}
+      maxScale={10}
+      centerOnInit={true}
+    >
+      {({ zoomIn, zoomOut, resetTransform }) => (
+        <div className="relative w-full h-full flex items-center justify-center">
+          {/* Floating Controls */}
+          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-4 p-3 bg-slate-900/80 border border-slate-700 rounded-2xl z-[70]">
+            <button onClick={() => zoomIn()} className="p-2 hover:text-blue-400 text-white transition-colors">
+              <ZoomIn className="w-6 h-6" />
+            </button>
+            <button onClick={() => zoomOut()} className="p-2 hover:text-blue-400 text-white transition-colors">
+              <ZoomOut className="w-6 h-6" />
+            </button>
+            <button onClick={() => resetTransform()} className="p-2 hover:text-red-400 text-white transition-colors">
+              <RotateCcw className="w-6 h-6" />
+            </button>
+          </div>
+
+          <TransformComponent wrapperClass="!w-screen !h-screen">
+            <div className="flex items-center justify-center w-screen h-screen">
+              <img
+                src={viewingImage}
+                alt="Full View"
+                className="max-h-[85vh] max-w-[85vw] object-contain shadow-2xl cursor-grab active:cursor-grabbing"
+              />
+            </div>
+          </TransformComponent>
+        </div>
+      )}
+    </TransformWrapper>
+  </div>
+)}
     </div>
   );
 }
