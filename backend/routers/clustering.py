@@ -147,7 +147,20 @@ def get_cluster_details(cluster_id: str):
         raise HTTPException(status_code=404, detail="Cluster not found")
         
     indices = clusters[cluster_id]
-    image_urls = [f"/images/{all_images[i]}" for i in indices]
+
+    print("CLUSTER:", cluster_id)
+    print("INDICES:", indices)
+    print("ALL_IMAGES_LEN:", len(all_images))
+
+    valid_indices = [i for i in indices if 0 <= i < len(all_images)]
+
+    image_urls = [
+        { "id": i, "url": f"/images/{all_images[i]}" }
+        for i in valid_indices
+    ]
+
+    
+
     
     return {
         "cluster": cluster_id,
@@ -176,3 +189,50 @@ def update_cluster_name(cluster_id: str, new_name: str = Body(..., embed=True)):
         json.dump(clusters, f, indent=2)
 
     return {"message": "Updated successfully", "new_id": new_name}
+
+
+@clustering_router.post("/clusters/move")
+def move_images(source_id: str = Body(...),target_id: str = Body(...),indices: list[int] = Body(...)):
+    with open(utils.CLUSTER_META_PATH, "r") as f:
+        data = json.load(f)
+
+    # Convert indices to match JSON types (usually ints)
+    indices_to_move = [int(i) for i in indices]
+
+    # 1. Update the CLUSTERS list (The actual image movement)
+    # Ensure keys exist to avoid crashes
+    if source_id not in data["clusters"]:
+        return {"error": f"Source cluster {source_id} not found"}, 404
+    
+    if target_id not in data["clusters"]:
+         # Create target if it doesn't exist (optional, but prevents crash)
+        data["clusters"][target_id] = []
+
+    # Remove from source
+    data["clusters"][source_id] = [
+        i for i in data["clusters"][source_id] if i not in indices_to_move
+    ]
+    
+    existing = set(data["clusters"][target_id])
+    to_add = [i for i in indices_to_move if i not in existing]
+    data["clusters"][target_id].extend(to_add)
+
+    # 2. Safely Update CLUSTER_INFO (The metadata)
+    # Check if cluster_info exists AND if the specific cluster keys exist inside it
+    if "cluster_info" in data:
+        if source_id in data["cluster_info"]:
+            data["cluster_info"][source_id]["size"] = len(data["clusters"][source_id])
+        
+        if target_id in data["cluster_info"]:
+            data["cluster_info"][target_id]["size"] = len(data["clusters"][target_id])
+        else:
+            # Optional: If target has no info, create a basic entry
+            data["cluster_info"][target_id] = {
+                "size": len(data["clusters"][target_id]),
+                "name": target_id
+            }
+
+    with open(utils.CLUSTER_META_PATH, "w") as f:
+        json.dump(data, f, indent=2)
+
+    return {"message": "Moved successfully"}
