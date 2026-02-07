@@ -39,6 +39,10 @@ export default function ClusterViewUI() {
   // Selection State (Using numeric indices for safety)
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
   const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
+// Inside ClusterViewUI component
+const [isCreatingNew, setIsCreatingNew] = useState(false);
+const [newClusterName, setNewClusterName] = useState("");
+
 
   const API_BASE = "http://127.0.0.1:8000";
 
@@ -120,25 +124,13 @@ export default function ClusterViewUI() {
   };
 
   // --- MOVE LOGIC ---
-// --- MOVE LOGIC ---
   const handleMove = async (targetId: string) => {
     if (!selectedCluster) return;
     try {
-      // 1. EXTRACT REAL IDs FROM URLs
-      // The frontend selection is just positions (0, 1, 2...)
-      // The backend needs the actual ID (e.g., 25, 28) stored in the filename
-      const realIds = selectedIndices.map(
-        index => selectedCluster.images[index].id
-      );
-
-
-      // Filter out any failed parses (0 or NaN) to be safe
+      const realIds = selectedIndices.map(index => selectedCluster.images[index].id);
       const validIds = realIds.filter(id => !isNaN(id));
 
-      if (validIds.length === 0) {
-        alert("Could not determine image IDs. Check filenames.");
-        return;
-      }
+      if (validIds.length === 0) return;
 
       const res = await fetch(`${API_BASE}/clusters/move`, {
         method: 'POST',
@@ -146,21 +138,25 @@ export default function ClusterViewUI() {
         body: JSON.stringify({
           source_id: selectedCluster.cluster,
           target_id: targetId,
-          indices: validIds // <--- Sending REAL IDs (25, 28...), not indices (0, 1...)
+          indices: validIds
         }),
       });
 
       if (!res.ok) throw new Error("Move failed");
       
-      const currentId = selectedCluster.cluster;
-      setSelectedIndices([]); // Clear selection
-      setIsMoveModalOpen(false); // Close modal
+      // --- RESET NEW CLUSTER STATES ---
+      setIsCreatingNew(false);
+      setNewClusterName("");
+      // --------------------------------
       
-      // Refresh data
+      const currentId = selectedCluster.cluster;
+      setSelectedIndices([]);
+      setIsMoveModalOpen(false);
+      
       await fetchClusters();
       await fetchClusterDetail(currentId);
     } catch (err) {
-      setError("Failed to move images. Check backend logs.");
+      setError("Failed to move images.");
       console.error(err);
     }
   };
@@ -337,32 +333,90 @@ export default function ClusterViewUI() {
         )}
       </main>
 
-      {/* --- MODAL 1: MOVE ITEMS --- */}
-      {isMoveModalOpen && selectedCluster && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-6 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl">
-            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900 z-10">
-              <h2 className="text-xl font-bold">Relocate {selectedIndices.length} Images</h2>
-              <button onClick={() => setIsMoveModalOpen(false)} className="p-2 hover:bg-slate-800 rounded-full transition-colors"><X /></button>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-6 overflow-y-auto bg-slate-950/30">
-              {clusters
-                .filter(c => c.id !== selectedCluster.cluster)
-                .map(c => (
-                  <div 
-                    key={c.id} 
-                    onClick={() => handleMove(c.id)} 
-                    className="bg-slate-800/50 p-3 rounded-xl border border-slate-700 hover:border-blue-500 hover:bg-slate-800 cursor-pointer transition-all group"
+  {/* --- MODAL 1: MOVE ITEMS --- */}
+  {isMoveModalOpen && selectedCluster && (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-6 animate-in fade-in">
+      <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col shadow-2xl">
+        <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900 z-10">
+          <h2 className="text-xl font-bold italic">Relocate {selectedIndices.length} Images</h2>
+          <button 
+            onClick={() => {
+              setIsMoveModalOpen(false);
+              setIsCreatingNew(false);
+              setNewClusterName("");
+            }} 
+            className="p-2 hover:bg-slate-800 rounded-full transition-colors"
+          >
+            <X />
+          </button>
+        </div>
+        
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-6 overflow-y-auto bg-slate-950/30">
+          {/* Existing Clusters */}
+          {clusters
+            .filter(c => c.id !== selectedCluster.cluster)
+            .map(c => (
+              <div 
+                key={c.id} 
+                onClick={() => handleMove(c.id)} 
+                className="bg-slate-800/50 p-3 rounded-xl border border-slate-700 hover:border-blue-500 hover:bg-slate-800 cursor-pointer transition-all group"
+              >
+                <img src={`${API_BASE}${c.preview_url}`} className="w-full h-24 object-cover rounded-lg mb-3 opacity-60 group-hover:opacity-100 transition-all" />
+                <p className="text-sm font-bold uppercase truncate tracking-widest">{c.id.replace('_', ' ')}</p>
+                <p className="text-xs text-slate-500 mt-1">{c.count} images</p>
+              </div>
+            ))}
+
+          {/* CREATE NEW CLUSTER CARD */}
+          <div 
+            onClick={() => setIsCreatingNew(true)}
+            className={`relative p-3 rounded-xl border-2 border-dashed transition-all flex flex-col items-center justify-center min-h-[160px] cursor-pointer ${
+              isCreatingNew ? 'border-blue-500 bg-blue-500/10' : 'border-slate-700 hover:border-slate-500 bg-slate-900/40'
+            }`}
+          >
+            {isCreatingNew ? (
+              <div className="w-full space-y-3 animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
+                <input
+                  autoFocus
+                  type="text"
+                  placeholder="Cluster Name..."
+                  className="w-full bg-slate-950 border border-blue-500/50 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 ring-blue-500/20"
+                  value={newClusterName}
+                  onChange={(e) => setNewClusterName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newClusterName.trim()) handleMove(newClusterName.trim());
+                    if (e.key === 'Escape') setIsCreatingNew(false);
+                  }}
+                />
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => newClusterName.trim() && handleMove(newClusterName.trim())}
+                    className="flex-1 bg-blue-500 hover:bg-blue-600 text-xs font-bold py-2 rounded-md transition-colors"
                   >
-                    <img src={`${API_BASE}${c.preview_url}`} className="w-full h-24 object-cover rounded-lg mb-3 opacity-60 group-hover:opacity-100 transition-all" />
-                    <p className="text-sm font-bold uppercase truncate tracking-widest">{c.id.replace('_', ' ')}</p>
-                    <p className="text-xs text-slate-500 mt-1">{c.count} images</p>
-                  </div>
-                ))}
-            </div>
+                    Create & Move
+                  </button>
+                  <button 
+                    onClick={() => setIsCreatingNew(false)}
+                    className="px-3 bg-slate-800 hover:bg-slate-700 text-xs py-2 rounded-md"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="p-4 bg-slate-800 rounded-full mb-3 group-hover:scale-110 transition-transform">
+                  <LayoutGrid className="w-8 h-8 text-blue-400" />
+                </div>
+                <p className="text-sm font-bold text-slate-400">New Cluster</p>
+                <p className="text-[10px] text-slate-600 mt-1">Create destination</p>
+              </>
+            )}
           </div>
         </div>
-      )}
+      </div>
+    </div>
+  )}
 
       {/* --- MODAL 2: PHOTO VIEWER (CENTERING FIXED) --- */}
       {viewingImage && (
