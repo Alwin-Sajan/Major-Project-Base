@@ -42,6 +42,7 @@ export default function ClusterViewUI() {
 // Inside ClusterViewUI component
 const [isCreatingNew, setIsCreatingNew] = useState(false);
 const [newClusterName, setNewClusterName] = useState("");
+const [selectedClusterIds, setSelectedClusterIds] = useState<string[]>([]);
 
 
   const API_BASE = "http://127.0.0.1:8000";
@@ -124,42 +125,79 @@ const [newClusterName, setNewClusterName] = useState("");
   };
 
   // --- MOVE LOGIC ---
-  const handleMove = async (targetId: string) => {
-    if (!selectedCluster) return;
-    try {
-      const realIds = selectedIndices.map(index => selectedCluster.images[index].id);
-      const validIds = realIds.filter(id => !isNaN(id));
+const handleMove = async (targetId: string) => {
+  if (!selectedCluster) return;
+  
+  // Check if we are moving EVERY image currently in the cluster
+  const movingAllImages = selectedIndices.length === selectedCluster.images.length;
+  
+  try {
+    const realIds = selectedIndices.map(index => selectedCluster.images[index].id);
+    const validIds = realIds.filter(id => !isNaN(id));
+    if (validIds.length === 0) return;
 
-      if (validIds.length === 0) return;
+    const res = await fetch(`${API_BASE}/clusters/move`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        source_id: selectedCluster.cluster,
+        target_id: targetId,
+        indices: validIds
+      }),
+    });
 
-      const res = await fetch(`${API_BASE}/clusters/move`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          source_id: selectedCluster.cluster,
-          target_id: targetId,
-          indices: validIds
-        }),
-      });
+    if (!res.ok) throw new Error("Move failed");
+    
+    // Reset states
+    setIsCreatingNew(false);
+    setNewClusterName("");
+    setIsMoveModalOpen(false);
+    setSelectedIndices([]);
 
-      if (!res.ok) throw new Error("Move failed");
-      
-      // --- RESET NEW CLUSTER STATES ---
-      setIsCreatingNew(false);
-      setNewClusterName("");
-      // --------------------------------
-      
-      const currentId = selectedCluster.cluster;
-      setSelectedIndices([]);
-      setIsMoveModalOpen(false);
-      
-      await fetchClusters();
-      await fetchClusterDetail(currentId);
-    } catch (err) {
-      setError("Failed to move images.");
-      console.error(err);
+    // --- SMART REFRESH LOGIC ---
+    await fetchClusters(); // Always refresh the main list
+
+    if (movingAllImages) {
+      // If the cluster is gone, go back to main grid
+      setSelectedCluster(null);
+    } else {
+      // If images remain, refresh the current detail view
+      await fetchClusterDetail(selectedCluster.cluster);
     }
-  };
+    
+  } catch (err) {
+    setError("Failed to move images.");
+    console.error(err);
+  }
+};
+
+
+  // DELETE CLUSTER
+const toggleClusterSelection = (id: string) => {
+  setSelectedClusterIds(prev => 
+    prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+  );
+};
+
+const handleDeleteClusters = async () => {
+  if (!window.confirm(`Delete ${selectedClusterIds.length} clusters? Images will be unclustered.`)) return;
+  
+  try {
+    const res = await fetch(`${API_BASE}/clusters/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(selectedClusterIds),
+    });
+
+    if (res.ok) {
+      setSelectedClusterIds([]);
+      fetchClusters(); // Refresh the grid
+    }
+  } catch (err) {
+    setError("Failed to delete clusters.");
+  }
+};
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-black-950 to-slate-900 text-white font-sans">
@@ -171,6 +209,7 @@ const [newClusterName, setNewClusterName] = useState("");
 
       {/* Header */}
       <header className="relative border-b border-blue-900/30 backdrop-blur-sm bg-slate-900/50 sticky top-0 z-40">
+
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg">

@@ -191,21 +191,19 @@ def update_cluster_name(cluster_id: str, new_name: str = Body(..., embed=True)):
     return {"message": "Updated successfully", "new_id": new_name}
 
 
+
 @clustering_router.post("/clusters/move")
-def move_images(source_id: str = Body(...),target_id: str = Body(...),indices: list[int] = Body(...)):
+def move_images(source_id: str = Body(...), target_id: str = Body(...), indices: list[int] = Body(...)):
     with open(utils.CLUSTER_META_PATH, "r") as f:
         data = json.load(f)
-
-    # Convert indices to match JSON types (usually ints)
+    # Convert indices to match JSON types
     indices_to_move = [int(i) for i in indices]
 
-    # 1. Update the CLUSTERS list (The actual image movement)
-    # Ensure keys exist to avoid crashes
+    # 1. Update the CLUSTERS list
     if source_id not in data["clusters"]:
         return {"error": f"Source cluster {source_id} not found"}, 404
     
     if target_id not in data["clusters"]:
-         # Create target if it doesn't exist (optional, but prevents crash)
         data["clusters"][target_id] = []
 
     # Remove from source
@@ -217,16 +215,26 @@ def move_images(source_id: str = Body(...),target_id: str = Body(...),indices: l
     to_add = [i for i in indices_to_move if i not in existing]
     data["clusters"][target_id].extend(to_add)
 
+    # --- NEW CLEANUP LOGIC START ---
+    # If the source cluster is now empty, remove it from the clusters dict
+    source_is_empty = len(data["clusters"][source_id]) == 0
+    if source_is_empty:
+        del data["clusters"][source_id]
+    # --- NEW CLEANUP LOGIC END ---
+
     # 2. Safely Update CLUSTER_INFO (The metadata)
-    # Check if cluster_info exists AND if the specific cluster keys exist inside it
     if "cluster_info" in data:
-        if source_id in data["cluster_info"]:
+        # If source is empty, delete its metadata too
+        if source_is_empty:
+            if source_id in data["cluster_info"]:
+                del data["cluster_info"][source_id]
+        elif source_id in data["cluster_info"]:
             data["cluster_info"][source_id]["size"] = len(data["clusters"][source_id])
         
+        # Update target as usual
         if target_id in data["cluster_info"]:
             data["cluster_info"][target_id]["size"] = len(data["clusters"][target_id])
         else:
-            # Optional: If target has no info, create a basic entry
             data["cluster_info"][target_id] = {
                 "size": len(data["clusters"][target_id]),
                 "name": target_id
