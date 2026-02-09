@@ -4,9 +4,11 @@ import json
 import utils
 import torchvision.transforms as transforms
 import torch.nn.functional as F
+import shutil
 from PIL import Image
 from fastapi import HTTPException, Body
 from fastapi import APIRouter
+
 
 
 # --- CONFIGURATION ---
@@ -244,3 +246,46 @@ def move_images(source_id: str = Body(...), target_id: str = Body(...), indices:
         json.dump(data, f, indent=2)
 
     return {"message": "Moved successfully"}
+
+
+
+@clustering_router.post("/clusters/confirm")
+def confirm_clusters(cluster_ids: list[str] = Body(...)):
+    # 1. Load both the cluster metadata and the actual image list
+    clusters_data, all_images = get_data() # get_data() returns (json_content, list_of_filenames)
+
+    moved_count = 0
+    
+    for cid in cluster_ids:
+        if cid not in clusters_data["clusters"]:
+            continue
+            
+        target_dir = os.path.join(utils.CLUSTER_INCREMENTAL_LEARNING_PATH, cid.capitalize())
+        os.makedirs(target_dir, exist_ok=True)
+        
+        # 2. Get the list of INDICES for this cluster
+        image_indices = clusters_data["clusters"][cid] 
+        
+        for idx in image_indices:
+            # 3. Look up the actual filename string using the index
+            # Ensure index is within bounds of all_images list
+            if 0 <= idx < len(all_images):
+                filename = all_images[idx] # This is now a string, e.g., "fish_1.jpg"
+                
+                source_path = os.path.join(utils.TRIAL_IMG_DIR, filename) 
+                target_path = os.path.join(target_dir, filename)
+                
+                if os.path.exists(source_path):
+                    shutil.copy(source_path, target_path)
+                    moved_count += 1
+        
+        # 4. Cleanup JSON after physical move
+        del clusters_data["clusters"][cid]
+        if "cluster_info" in clusters_data and cid in clusters_data["cluster_info"]:
+            del clusters_data["cluster_info"][cid]
+
+    # 5. Save the updated (cleaned) JSON #NOTE : uncoment to remove data from json
+    with open(utils.CLUSTER_META_PATH, "w") as f:
+        json.dump(clusters_data, f, indent=2)
+
+    return {"message": f"Successfully moved {moved_count} images to training set."}

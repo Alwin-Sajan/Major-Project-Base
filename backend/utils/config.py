@@ -16,6 +16,8 @@ EMB_PATH = f"{UNKNOWN_DIR}/embeddings.npy"
 META_PATH = f"{UNKNOWN_DIR}/metadata.json"
 CLUSTER_META_PATH = f"{UNKNOWN_DIR}/clusters.json"
 LAST_CLUSTER_TIME_PATH = f"{UNKNOWN_DIR}/last_cluster_time.txt"
+CLUSTER_INCREMENTAL_LEARNING_PATH = r"/media/abk/New Disk/DATASETS/CLUSTER_INCREMENTAL_LEARNING"
+TRIAL_IMG_DIR = r"/media/abk/New Disk/DATASETS/clusterdataset"
 
 
 DB_FAISS_PATH = r"/home/abk/abk/projects/Major-project-basic-ui/backend/vectorstore/"
