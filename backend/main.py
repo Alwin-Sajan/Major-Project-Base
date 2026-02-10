@@ -23,6 +23,7 @@ routers_list = [
     #routers.backend_router,
     routers.clustering_router,
     #routers.chatbot_router, #NOTE
+    routers.guess_species_router
 ]
 for router in routers_list:
     app.include_router(router=router) 

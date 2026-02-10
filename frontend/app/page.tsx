@@ -36,6 +36,12 @@ export default function EntryPage() {
         </button>
       </Link>
 
+      {/* Button 5*/}
+      <Link href="/guess-the-species">
+        <button className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-lg transition-colors duration-300">
+          Guess Game
+        </button>
+      </Link>
 
       </div>
     </div>
