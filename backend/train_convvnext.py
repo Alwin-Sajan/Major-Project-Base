@@ -236,3 +236,4 @@ def val_result_checker(data_root):
 if __name__ == "__main__":
     DATA_PATH = "/media/abk/New Disk/DATASETS/first/updatedDataset"
     train_model(DATA_PATH, epochs=5)
+    #val_result_checker(DATA_PATH)

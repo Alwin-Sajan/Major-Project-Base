@@ -11,6 +11,7 @@ class SQLiteDB:
         with self._get_connection() as con:
             cur = con.cursor()
             cur.execute(query, args)
+            return cur.lastrowid
 
     def fetchone(self, query: str, *args):
         with self._get_connection() as con:
@@ -24,16 +25,34 @@ class SQLiteDB:
             cur.execute(query, args)
             return cur.fetchall()
         
+
 db = SQLiteDB("database/data.db")
 
 db.execute("""
-CREATE TABLE IF NOT EXISTS user (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    number BIGINT NOT NULL 
+CREATE TABLE IF NOT EXISTS student (
+    sid INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE,
+    institution TEXT NOT NULL,
+    password TEXT NOT NULL
 );
 """)
 
-#db.execute("""INSERT INTO emergency(name,number) VALUES("Aravind", 8111938885)""")
-#TASKS = db.fetchall("SELECT task,time FROM reminders")
-#print(TASKS)
+db.execute("""
+CREATE TABLE IF NOT EXISTS admin (
+    aid INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL,
+    password TEXT NOT NULL
+);
+""")
+ 
+db.execute("""
+CREATE TABLE IF NOT EXISTS leaderboard (
+    sid INTEGER PRIMARY KEY ,
+    score INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (sid) REFERENCES student(sid) ON DELETE CASCADE
+);
+""")
+
+
+

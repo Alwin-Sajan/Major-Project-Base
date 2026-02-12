@@ -2,6 +2,7 @@ import os, json, time
 import numpy as np
 from PIL import Image
 from sklearn.cluster import DBSCAN
+from hdbscan import HDBSCAN
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import normalize, StandardScaler
 from . import config
@@ -31,7 +32,7 @@ def store_unknown(image: Image.Image, embedding: np.ndarray, confidence: float):
     fname = f"{ts}_{uuid4().hex}.jpg"
 
     # 1. Save image NOTE
-    #image.save(os.path.join(IMG_DIR, fname))
+    image.save(os.path.join(config.IMG_DIR, fname))
 
     # 2. Save embedding
     if os.path.exists(config.EMB_PATH):
@@ -64,12 +65,12 @@ def checkClusterCondition():
         if count >= config.UNKNOWN_COUNT_THRESHOLD:
             return True, "COUNT_TRIGGER"
 
-    # Trigger 2: time
-    now = time.time()
-    if os.path.exists(config.LAST_CLUSTER_TIME_PATH):
-        last = float(open(config.LAST_CLUSTER_TIME_PATH).read())
-        if now - last >= config.CLUSTER_TIME_THRESHOLD:
-            return True, "TIME_TRIGGER"
+    # # Trigger 2: time
+    # now = time.time()
+    # if os.path.exists(config.LAST_CLUSTER_TIME_PATH):
+    #     last = float(open(config.LAST_CLUSTER_TIME_PATH).read())
+    #     if now - last >= config.CLUSTER_TIME_THRESHOLD:
+    #         return True, "TIME_TRIGGER"
 
     return False, None
 
@@ -82,8 +83,7 @@ def run_clustering():
     embs = np.load(config.EMB_PATH)
     embs = normalize(embs, axis=1) 
 
-    # DBSCAN works well for unknown discovery
-    clusterer = DBSCAN(
+    clusterer = HDBSCAN(
         eps=0.17,min_samples=5,
         metric="cosine"
     )

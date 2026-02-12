@@ -119,6 +119,7 @@ async def testingifAnImageisKNOWN():
     return {None}
 
 
+# NOTE - starts here
 
 @clustering_router.get("/clusters")
 def get_all_clusters():
@@ -161,9 +162,6 @@ def get_cluster_details(cluster_id: str):
         for i in valid_indices
     ]
 
-    
-
-    
     return {
         "cluster": cluster_id,
         "total": len(indices),

@@ -22,7 +22,7 @@ app.mount("/images", StaticFiles(directory=IMG_DIR), name="images")
 routers_list = [
     #routers.backend_router,
     #routers.chatbot_router, #NOTE
-    routers.clustering_router,
+    #routers.clustering_router,
     routers.guess_species_router,
     routers.student_router,
     routers.admin_router

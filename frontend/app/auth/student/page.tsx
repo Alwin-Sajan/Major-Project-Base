@@ -15,8 +15,8 @@ export default function StudentAuthPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    username: '',
     email: '',
+    username: '',
     institution: '',
     password: '',
   });
@@ -33,7 +33,7 @@ export default function StudentAuthPage() {
     const url = `http://localhost:8000/student${path}`;
 
     const payload = isLogin 
-      ? { username: formData.username, password: formData.password }
+      ? { email: formData.email, password: formData.password }
       : { 
           username: formData.username, 
           email: formData.email, 
@@ -86,22 +86,23 @@ export default function StudentAuthPage() {
         <div className="bg-slate-800/50 backdrop-blur-md border border-cyan-400/30 rounded-2xl p-8 shadow-2xl">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-slate-300 text-sm font-semibold mb-2">Username</label>
-              <div className="relative">
-                <UserIcon className="absolute left-3 top-3.5 w-5 h-5 text-cyan-400" />
-                <input name="username" value={formData.username} onChange={handleInputChange} required type="text" placeholder="Dexter Morgan" className="w-full pl-10 pr-4 py-2.5 bg-slate-700/50 border border-cyan-400/30 rounded-lg focus:border-cyan-400 focus:outline-none text-white" />
-              </div>
+                    <label className="block text-slate-300 text-sm font-semibold mb-2">Email</label>
+                    <div className="relative">
+                      <MailIcon className="absolute left-3 top-3.5 w-5 h-5 text-cyan-400" />
+                      <input name="email" value={formData.email} onChange={handleInputChange} required type="email" placeholder="you@example.com" className="w-full pl-10 pr-4 py-2.5 bg-slate-700/50 border border-cyan-400/30 rounded-lg focus:border-cyan-400 focus:outline-none text-white" />
+                    </div>
             </div>
 
             <AnimatePresence mode='wait'>
               {!isLogin && (
                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="space-y-4 overflow-hidden">
                   <div>
-                    <label className="block text-slate-300 text-sm font-semibold mb-2">Email</label>
-                    <div className="relative">
-                      <MailIcon className="absolute left-3 top-3.5 w-5 h-5 text-cyan-400" />
-                      <input name="email" value={formData.email} onChange={handleInputChange} required type="email" placeholder="you@example.com" className="w-full pl-10 pr-4 py-2.5 bg-slate-700/50 border border-cyan-400/30 rounded-lg focus:border-cyan-400 focus:outline-none text-white" />
-                    </div>
+              <label className="block text-slate-300 text-sm font-semibold mb-2">Username</label>
+              <div className="relative">
+                <UserIcon className="absolute left-3 top-3.5 w-5 h-5 text-cyan-400" />
+                <input name="username" value={formData.username} onChange={handleInputChange} required type="text" placeholder="Dexter Morgan" className="w-full pl-10 pr-4 py-2.5 bg-slate-700/50 border border-cyan-400/30 rounded-lg focus:border-cyan-400 focus:outline-none text-white" />
+              </div>
+
                   </div>
                   <div>
                     <label className="block text-slate-300 text-sm font-semibold mb-2">Institution</label>

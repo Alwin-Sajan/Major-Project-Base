@@ -6,26 +6,29 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
+import torchvision
+import torch.nn as nn
 
 # =====================================================
 # 1. Model Definition (Must match training structure)
 # =====================================================
-class ConvNeXtIncremental(torch.nn.Module):
-    def __init__(self, embedding_dim=256, pretrained=False):
+class ConvNeXtIncremental(nn.Module):
+    def __init__(self, embedding_dim=256, pretrained=True):
         super().__init__()
-        # Weights=None because we are loading custom weights
-        backbone = torch.hub.load('pytorch/vision:v0.10.0', 'convnext_tiny', weights=None)
+        weights = torchvision.models.ConvNeXt_Tiny_Weights.IMAGENET1K_V1 if pretrained else None
+        backbone = torchvision.models.convnext_tiny(weights=weights)
         
         self.features = backbone.features
-        self.pool = torch.nn.AdaptiveAvgPool2d(1)
+        self.pool = nn.AdaptiveAvgPool2d(1)
         
         in_features = backbone.classifier[2].in_features 
-        self.proj = torch.nn.Sequential(
-            torch.nn.Linear(in_features, 512),
-            torch.nn.LayerNorm(512),
-            torch.nn.ReLU(inplace=True),
-            torch.nn.Linear(512, embedding_dim)
+        self.proj = nn.Sequential(
+            nn.Linear(in_features, 512),
+            nn.LayerNorm(512),
+            nn.ReLU(inplace=True),
+            nn.Linear(512, embedding_dim)
         )
+
 
     def forward(self, x):
         x = self.features(x)

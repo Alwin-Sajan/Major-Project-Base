@@ -3,7 +3,7 @@ CONVNEXT_MODEL_PATH = "/home/abk/abk/projects/Major-project-basic-ui/models/conv
 
 
 # ---- Trigger thresholds ----
-UNKNOWN_COUNT_THRESHOLD = 4       # Trigger 1
+UNKNOWN_COUNT_THRESHOLD = 200       # Trigger 1
 CLUSTER_TIME_THRESHOLD = 24 * 3600  # Trigger 2 (24 hrs)
 OOD_THRESHOLD = 0.65     # cosine similarity
 MARGIN_THRESHOLD = 0.15 # top1 - top2 gap
