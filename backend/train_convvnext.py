@@ -210,6 +210,29 @@ def train_model(data_root, epochs=40, batch_size=32, lr=1e-4, device="cuda"):
     print("✅ Final Model with Prototypes Saved.")
 
 
+
+def val_result_checker(data_root):
+    device = "cuda"
+    batch_size = 32
+
+    model = ConvNeXtIncremental().to(device)
+    val_transform = transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize(
+            [0.485, 0.456, 0.406],
+            [0.229, 0.224, 0.225]
+        )
+    ])
+    val_ds = datasets.ImageFolder(os.path.join(data_root, "val"), val_transform)
+    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False)
+
+    classifier = CosineClassifier(256, len(val_ds.classes)).to(device)
+    val_acc = evaluate(model, classifier, val_loader, device)
+    print(f"Validation Accuracy: {val_acc:.4f}")
+
+
 if __name__ == "__main__":
     DATA_PATH = "/media/abk/New Disk/DATASETS/first/updatedDataset"
     train_model(DATA_PATH, epochs=5)

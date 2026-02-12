@@ -3,7 +3,7 @@ from typing import List
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_ollama import ChatOllama
-from langchain_classic.schema import SystemMessage, HumanMessage
+from langchain_core.messages import SystemMessage, HumanMessage
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from fastapi import APIRouter, Form, UploadFile, File
@@ -55,7 +55,7 @@ vectorstore = FAISS.load_local(
 )
 
 llm = ChatOllama(
-    model=utils.MODEL_NAME,
+    model=utils.MODEL_LLAMA,
     temperature=0.0,
     disable_streaming=False,
     seed=43,
