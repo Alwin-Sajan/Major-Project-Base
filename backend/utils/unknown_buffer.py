@@ -6,6 +6,10 @@ from hdbscan import HDBSCAN
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import normalize, StandardScaler
 from . import config
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import silhouette_score, davies_bouldin_score
+from hdbscan import HDBSCAN, all_points_membership_vectors
+import umap
 
 os.makedirs(config.IMG_DIR, exist_ok=True)
 
@@ -149,3 +153,94 @@ def run_clustering_fixed():
         
     json.dump(clusters, open(config.CLUSTER_META_PATH, "w"), indent=2)
     print("Saved clusters.json")
+
+
+def run_clustering_HDBSCAN():
+    if not os.path.exists(config.EMB_PATH):
+        print(f"Error: {config.EMB_PATH} not found.")
+        return
+    
+    # 1. Load and Preprocess
+    embs = np.load(config.EMB_PATH)
+    # Standardize features before UMAP for better spatial density estimation
+    embs_scaled = StandardScaler().fit_transform(embs)
+    
+    # 2. Advanced Dimensionality Reduction (UMAP)
+    # Using 'densmap=True' helps preserve local density which is vital for HDBSCAN
+    reducer = umap.UMAP(
+        n_components=30,       # Reduced slightly for better cluster density
+        n_neighbors=20,       # Increased to capture more global spatial context
+        min_dist=0.0,         # Set to 0.0 for better clustering performance
+        metric='cosine',
+        densmap=True,         # Better preserves relative density
+        random_state=42
+    )
+    embs_reduced = reducer.fit_transform(embs_scaled)
+    
+    # 3. Enhanced HDBSCAN Clustering
+    clusterer = HDBSCAN(
+        min_cluster_size=5,
+        min_samples=2,         # Lower min_samples reduces noise for tighter spatial grouping
+        metric='euclidean',
+        cluster_selection_method='leaf', # 'leaf' often yields finer-grained spatial clusters than 'eom'
+        prediction_data=True
+    )
+    labels = clusterer.fit_predict(embs_reduced)
+    
+    # 4. Spatial Refinement: Soft Clustering
+    # This assigns a probability score to every point for every cluster
+    soft_clusters = all_points_membership_vectors(clusterer)
+    
+    # 5. Metrics & Evaluation
+    mask = labels != -1
+    if mask.sum() >= 2:
+        try:
+            n_clusters = len(np.unique(labels[mask]))
+            if n_clusters >= 2:
+                s_score = silhouette_score(embs_reduced[mask], labels[mask])
+                db_index = davies_bouldin_score(embs_reduced[mask], labels[mask])
+                print(f"--- Spatial Metrics ---")
+                print(f"Clusters: {n_clusters} | Noise: {np.sum(labels == -1)}")
+                print(f"Silhouette: {s_score:.3f} | DB Index: {db_index:.3f}")
+        except Exception as e:
+            print(f"Evaluation error: {e}")
+
+    # 6. Structured Output Generation
+    clusters = {}
+    cluster_info = {}
+    
+    for idx, lbl in enumerate(labels):
+        if lbl == -1:
+            # Optional: Use soft clustering to assign noise to the "closest" spatial cluster 
+            # if the probability is high enough (> 0.5)
+            best_pick = np.argmax(soft_clusters[idx])
+            if soft_clusters[idx][best_pick] > 0.7:
+                lbl = best_pick
+            else:
+                continue 
+        
+        cluster_key = f"cluster_{lbl}"
+        if cluster_key not in clusters:
+            clusters[cluster_key] = []
+            cluster_info[cluster_key] = {'size': 0, 'confidence_scores': []}
+        
+        clusters[cluster_key].append(int(idx))
+        cluster_info[cluster_key]['size'] += 1
+        cluster_info[cluster_key]['confidence_scores'].append(float(clusterer.probabilities_[idx]))
+    
+    # Calculate final cluster health
+    for key in cluster_info:
+        scores = cluster_info[key]['confidence_scores']
+        cluster_info[key]['avg_confidence'] = float(np.mean(scores)) if scores else 0
+        del cluster_info[key]['confidence_scores'] # Clean up raw lists
+
+    output = {
+        'metadata': {'total_samples': len(embs), 'reduction_method': 'UMAP+DensMAP'},
+        'clusters': clusters,
+        'cluster_info': cluster_info 
+    }
+    
+    with open(config.CLUSTER_META_PATH, "w") as f:
+        json.dump(output, f, indent=2)
+    
+    print(f"Spatial clustering complete. Saved to {config.CLUSTER_META_PATH}")

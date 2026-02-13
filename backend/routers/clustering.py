@@ -10,7 +10,6 @@ from fastapi import HTTPException, Body
 from fastapi import APIRouter
 
 
-
 # --- CONFIGURATION ---
 device = utils.device
 embedding_net = utils.embedding_net
@@ -56,7 +55,7 @@ async def runcluster():
 async def runcluster():
     print("staring clustering")
     #utils.run_clustering()
-    utils.run_clustering()
+    utils.run_clustering_HDBSCAN()
     print("ending clustering")
     return {None}
 
@@ -117,7 +116,6 @@ async def testingifAnImageisKNOWN():
                 print(f"{class_names[best_idx.item()]} ({round(score * 100, 2)}) -- ",full_path)
 
     return {None}
-
 
 
 

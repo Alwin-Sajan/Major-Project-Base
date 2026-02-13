@@ -79,19 +79,26 @@ def get_question():
 def check_answer(submission: AnswerSubmission):
     global current_question_index
     
+    # Get the real answer from your DB to show the student if they are wrong
     target_data = questions_db[current_question_index]
-    correct_answer = target_data["a"].lower().strip()
-    user_answer = submission.answer.lower().strip()
-    
-    if user_answer == correct_answer:
+    actual_species_name = target_data["a"] 
+
+    if submission.answer == "correct":
+        # Calculate points
         awarded_points = 2 if submission.hint_used else 5
+        
+        # --- DATABASE UPDATE LOGIC HERE ---
+        # update_user_points(user_id, awarded_points)
+        # ----------------------------------
         
         return {
             "result": True, 
             "points": awarded_points
         }
     else:
+        # User was incorrect, return the learning data
         return {
             "result": False, 
-            "points": 0
+            "points": 0, 
+            "correct_answer": actual_species_name
         }

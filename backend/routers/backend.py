@@ -117,7 +117,7 @@ async def predictOOD(file: UploadFile = File(...)):
             print("clustering")
             do_cluster, reason = utils.checkClusterCondition()
             if do_cluster:
-                utils.run_clustering()
+                utils.run_clustering_HDBSCAN()
 
             return {
                 "class_name": "UNKNOWN",
