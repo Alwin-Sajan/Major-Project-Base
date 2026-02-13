@@ -17,7 +17,7 @@ class AnswerSubmission(BaseModel):
 class QUIZ(BaseModel):
     """Input Species data into a quiz output"""
     question: str = Field(..., description="The Question to be asked for quiz")
-    hint: int = Field(..., description="The hint for the question in one line")
+    hint: str = Field(..., description="The hint for the question in one line")
     answer: str = Field(..., description="The correct asnwer for the quiz")
 
 llm = ChatOllama(
@@ -29,6 +29,14 @@ llm = ChatOllama(
 )
 
 llm_with_structure = llm.with_structured_output(QUIZ)
+
+conversation = [
+    SystemMessage(
+        "You are a Quiz expert, your task is create a question from a given data, also generate hint for the question,"
+        "answer will be given along with the content. content contains species name and some text on its features"
+        "Create a question to identify species(state all features) and a suitable hint. Must be easy to predict, hints can be more revealing to help students"
+    )
+]
 
 
 def load_taxonomic_for_game(jsonl_path: str = utils.JSONL_RAG_PATH):
@@ -55,9 +63,16 @@ def get_question():
 
     current_question_index = random.randint(0, len(questions_db) - 1)
     q_data = questions_db[current_question_index]
+
+    conversation.append(HumanMessage(
+        f"the data is {q_data["text"]}. answer is {q_data["text"]} belongs to {q_data["genus"]} genus"
+    ))
+    response:QUIZ = llm_with_structure.invoke(conversation)
+    print(response)
     return {
-        "question": q_data["question"], 
-        "hint": q_data["hint"]
+        "question": response.question, 
+        "hint": response.hint,
+        "ans" : response.answer
     }
 
 @guess_species_router.post("/checkAnswer")

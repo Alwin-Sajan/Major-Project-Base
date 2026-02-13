@@ -11,8 +11,11 @@ import {
   XCircle,
   HelpCircle,
   Sparkles,
-  Waves
+  Waves,
+  ShieldCheckIcon // Added for Admin/Scientist icon
 } from 'lucide-react';
+// 1. Import Auth Context
+import { useAuth } from '@/app/context/AuthContext'; 
 
 interface QuestionData {
   question: string;
@@ -25,6 +28,9 @@ interface CheckResponse {
 }
 
 export default function TriviaGame() {
+  // 2. Access user data
+  const { user } = useAuth();
+
   // Game State
   const [score, setScore] = useState<number>(0);
   const [currentQuestion, setCurrentQuestion] = useState<QuestionData | null>(null);
@@ -33,7 +39,7 @@ export default function TriviaGame() {
   // UI State
   const [isLoading, setIsLoading] = useState<boolean>(true); 
   const [isChecking, setIsChecking] = useState<boolean>(false);
-  const [showHint, setShowHint] = useState<boolean>(false); // This tracks if hint was used
+  const [showHint, setShowHint] = useState<boolean>(false); 
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
   const [lastPointsEarned, setLastPointsEarned] = useState<number>(0);
   const [streak, setStreak] = useState<number>(0);
@@ -45,7 +51,7 @@ export default function TriviaGame() {
   const fetchQuestion = async () => {
     setIsLoading(true);
     setFeedback(null);
-    setShowHint(false); // Reset hint for the new question
+    setShowHint(false); 
     setUserAnswer('');
     
     try {
@@ -56,8 +62,8 @@ export default function TriviaGame() {
     } catch (error) {
       console.error("Error fetching question:", error);
       setCurrentQuestion({
-        question: "Couldnt fetch qn",
-        hint: "shit"
+        question: "Could not fetch question from server",
+        hint: "Check backend connection"
       });
     } finally {
       setIsLoading(false);
@@ -67,38 +73,31 @@ export default function TriviaGame() {
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!userAnswer.trim() || isChecking) return;
-
     setIsChecking(true);
 
     try {
-      // Sending both the answer AND the hint_used boolean to FastAPI
       const response = await fetch('http://127.0.0.1:8000/checkAnswer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
             answer: userAnswer,
-            hint_used: showHint // Sending the state of hint usage
+            hint_used: showHint 
         }),
       });
 
       if (!response.ok) throw new Error('Failed to verify');
-      
       const data: CheckResponse = await response.json();
 
       if (data.result) {
         setFeedback('correct');
-        setLastPointsEarned(data.points); // Store points from backend
+        setLastPointsEarned(data.points); 
         setScore(prev => prev + data.points);
         setStreak(prev => prev + 1);
-        
-        setTimeout(() => {
-          fetchQuestion();
-        }, 1800);
+        setTimeout(() => { fetchQuestion(); }, 1800);
       } else {
         setFeedback('wrong');
         setStreak(0);
       }
-
     } catch (error) {
       console.error("Error checking answer", error);
     } finally {
@@ -116,8 +115,8 @@ export default function TriviaGame() {
       </div>
 
       {/* Header */}
-      <header className="relative border-b border-blue-900/30 backdrop-blur-sm bg-slate-900/50 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-4">
+      <header className="relative border-b border-blue-900/30 backdrop-blur-sm bg-slate-900/50 sticky top-0 z-40">
+        <div className="max-w-5xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl">
@@ -128,7 +127,8 @@ export default function TriviaGame() {
               </h1>
             </div>
 
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4">
+              {/* Score Counter */}
               <div className="flex items-center gap-3 px-4 py-2 bg-slate-800/50 rounded-full border border-slate-700/50">
                 <Trophy className={`w-5 h-5 ${streak > 2 ? 'text-yellow-400 animate-bounce' : 'text-blue-400'}`} />
                 <div className="flex flex-col leading-none">
@@ -136,13 +136,23 @@ export default function TriviaGame() {
                   <span className="text-lg font-bold text-white tabular-nums">{score}</span>
                 </div>
               </div>
+
+              {/* UPDATED: Profile Section */}
               <div className="flex items-center gap-3 pl-1 pr-4 py-1 bg-slate-800/50 rounded-full border border-slate-700/50">
                 <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-500 to-cyan-600 p-[2px]">
                   <div className="w-full h-full rounded-full bg-slate-900 flex items-center justify-center overflow-hidden">
-                    <User className="w-5 h-5 text-slate-300" />
+                    {/* Role Based Icon */}
+                    {user?.type === 'student' ? (
+                      <User className="w-5 h-5 text-slate-300" />
+                    ) : (
+                      <ShieldCheckIcon className="w-5 h-5 text-purple-400" />
+                    )}
                   </div>
                 </div>
-                <span className="text-sm font-medium text-slate-200">Student Name</span>
+                <div className="flex flex-col leading-tight">
+                  <span className="text-sm font-bold text-slate-100">{user?.user || "Guest"}</span>
+                  <span className="text-[10px] text-cyan-400 uppercase tracking-tighter font-semibold">{user?.type || "user"}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -150,6 +160,7 @@ export default function TriviaGame() {
       </header>
 
       <main className="relative max-w-2xl mx-auto px-6 py-12 flex flex-col justify-center min-h-[80vh]">
+        {/* ... Rest of your Main Game logic (Questions, Inputs, etc.) ... */}
         <div className="relative group">
           <div className={`absolute -inset-1 rounded-2xl blur opacity-25 transition duration-1000 
             ${feedback === 'correct' ? 'bg-green-500' : feedback === 'wrong' ? 'bg-red-500' : 'bg-gradient-to-r from-blue-600 to-cyan-600'}`}>
@@ -159,7 +170,7 @@ export default function TriviaGame() {
             {isLoading ? (
               <div className="flex flex-col items-center justify-center py-12 space-y-4">
                 <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
-                <p className="text-slate-400 animate-pulse">Conneting to Server</p>
+                <p className="text-slate-400 animate-pulse">Connecting to Server</p>
               </div>
             ) : (
               <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -173,57 +184,35 @@ export default function TriviaGame() {
                   </h2>
                 </div>
 
-                {/* Hint Logic */}
                 <div className="relative">
                   {!showHint ? (
-                    <button 
-                      onClick={() => setShowHint(true)}
-                      className="flex items-center gap-2 text-sm text-slate-400 hover:text-blue-400 transition-colors group/hint"
-                    >
+                    <button onClick={() => setShowHint(true)} className="flex items-center gap-2 text-sm text-slate-400 hover:text-blue-400 transition-colors group/hint">
                       <Lightbulb className="w-4 h-4 group-hover/hint:scale-110 transition-transform" />
                       <span>Use Hint? <span className="underline decoration-slate-600 underline-offset-4 group-hover/hint:decoration-blue-500/50">(Reduces points)</span></span>
                     </button>
                   ) : (
                     <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 animate-in fade-in slide-in-from-top-2">
-                      <div className="flex gap-3">
-                        <Lightbulb className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-                        <p className="text-slate-300 text-sm italic">"{currentQuestion?.hint}"</p>
-                      </div>
+                      <p className="text-slate-300 text-sm italic">"{currentQuestion?.hint}"</p>
                     </div>
                   )}
                 </div>
 
                 <div className="space-y-4">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={userAnswer}
-                      onChange={(e) => {
-                        setUserAnswer(e.target.value);
-                        if (feedback === 'wrong') setFeedback(null);
-                      }}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-                      placeholder="Enter classification..."
-                      disabled={feedback === 'correct'}
-                      className={`w-full bg-slate-800/30 text-white placeholder:text-slate-600 px-6 py-5 rounded-xl border-2 outline-none transition-all duration-300 text-lg
-                        ${feedback === 'correct' ? 'border-green-500/50 bg-green-500/10' : feedback === 'wrong' ? 'border-red-500/50 bg-red-500/10' : 'border-slate-700 focus:border-blue-500'}
-                      `}
-                    />
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                      {isChecking && <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />}
-                      {!isChecking && feedback === 'correct' && <CheckCircle2 className="w-6 h-6 text-green-400" />}
-                      {!isChecking && feedback === 'wrong' && <XCircle className="w-6 h-6 text-red-400" />}
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={handleSubmit}
-                    disabled={!userAnswer || isChecking || feedback === 'correct'}
-                    className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all duration-300 
-                      ${feedback === 'correct' ? 'bg-green-600/50' : 'bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white shadow-lg shadow-blue-500/10'}
-                      disabled:opacity-50
+                  <input
+                    type="text"
+                    value={userAnswer}
+                    onChange={(e) => {
+                      setUserAnswer(e.target.value);
+                      if (feedback === 'wrong') setFeedback(null);
+                    }}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+                    placeholder="Enter classification..."
+                    disabled={feedback === 'correct'}
+                    className={`w-full bg-slate-800/30 text-white placeholder:text-slate-600 px-6 py-5 rounded-xl border-2 outline-none transition-all duration-300 text-lg
+                      ${feedback === 'correct' ? 'border-green-500/50 bg-green-500/10' : feedback === 'wrong' ? 'border-red-500/50 bg-red-500/10' : 'border-slate-700 focus:border-blue-500'}
                     `}
-                  >
+                  />
+                  <button onClick={handleSubmit} disabled={!userAnswer || isChecking || feedback === 'correct'} className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all duration-300 ${feedback === 'correct' ? 'bg-green-600/50' : 'bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white shadow-lg shadow-blue-500/10'} disabled:opacity-50`}>
                     {feedback === 'correct' ? <><Sparkles className="w-5 h-5" /> Verified</> : <><Send className="w-5 h-5" /> Submit Answer</>}
                   </button>
                 </div>
