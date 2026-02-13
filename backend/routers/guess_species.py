@@ -5,11 +5,13 @@ from langchain_ollama import ChatOllama
 from langchain_core.messages import SystemMessage, HumanMessage
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
+from utils import db
 
 
 guess_species_router = APIRouter()
 
 class AnswerSubmission(BaseModel):
+    sid:int
     answer: str
     hint_used: bool
 
@@ -65,38 +67,46 @@ def get_question():
     q_data = questions_db[current_question_index]
 
     conversation.append(HumanMessage(
-        f"the data is {q_data["text"]}. answer is {q_data["text"]} belongs to {q_data["genus"]} genus"
+        f"the data is {q_data["text"]}. answer is {q_data["species_name"]} belongs to {q_data["genus"]} genus"
     ))
     response:QUIZ = llm_with_structure.invoke(conversation)
+    #response = {"question":"test","hint":'dsds',"answer":"ffd dd 123" }
     print(response)
     return {
-        "question": response.question, 
+        "question": response.question,  #NOTE change
         "hint": response.hint,
         "ans" : response.answer
     }
+    # return {
+    #     "question": response["question"],  #NOTE change
+    #     "hint": response["hint"],
+    #     "ans" : response["answer"]
+    # }
 
 @guess_species_router.post("/checkAnswer")
 def check_answer(submission: AnswerSubmission):
     global current_question_index
     
-    # Get the real answer from your DB to show the student if they are wrong
     target_data = questions_db[current_question_index]
-    actual_species_name = target_data["a"] 
+    actual_species_name = target_data.get("species_name") 
 
     if submission.answer == "correct":
-        # Calculate points
         awarded_points = 2 if submission.hint_used else 5
         
-        # --- DATABASE UPDATE LOGIC HERE ---
-        # update_user_points(user_id, awarded_points)
-        # ----------------------------------
+        # --- DATABASE UPDATE LOGIC ---
+        # You can now use submission.sid to update the specific user
+        print(f"Updating points for Student ID: {submission.sid}")
+        points = db.fetchone("SELECT score from Leaderboard where sid=?",submission.sid)
+        value = points[0] if points else 0
+        db.execute("INSERT INTO leaderboard VALUES(?,?)", submission.sid, value+awarded_points)
+        # update_student_score(student_id=submission.sid, points=awarded_points)
+        # -----------------------------
         
         return {
             "result": True, 
             "points": awarded_points
         }
     else:
-        # User was incorrect, return the learning data
         return {
             "result": False, 
             "points": 0, 
