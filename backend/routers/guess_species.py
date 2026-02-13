@@ -3,7 +3,7 @@ import json
 import random
 from langchain_ollama import ChatOllama
 from langchain_core.messages import SystemMessage, HumanMessage
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from utils import db
 
@@ -22,15 +22,15 @@ class QUIZ(BaseModel):
     hint: str = Field(..., description="The hint for the question in one line")
     answer: str = Field(..., description="The correct asnwer for the quiz")
 
-llm = ChatOllama(
-    model=utils.MODEL_LLAMA,
-    temperature=0.0,
-    disable_streaming=False,
-    seed=43,
-    num_predict=100
-)
+# llm = ChatOllama(
+#     model=utils.MODEL_LLAMA,
+#     temperature=0.0,
+#     disable_streaming=False,
+#     seed=43,
+#     num_predict=100
+# )
 
-llm_with_structure = llm.with_structured_output(QUIZ)
+# llm_with_structure = llm.with_structured_output(QUIZ)
 
 conversation = [
     SystemMessage(
@@ -69,19 +69,19 @@ def get_question():
     conversation.append(HumanMessage(
         f"the data is {q_data["text"]}. answer is {q_data["species_name"]} belongs to {q_data["genus"]} genus"
     ))
-    response:QUIZ = llm_with_structure.invoke(conversation)
-    #response = {"question":"test","hint":'dsds',"answer":"ffd dd 123" }
+    #response:QUIZ = llm_with_structure.invoke(conversation)
+    response = {"question":"test","hint":'dsds',"answer":"ffd dd 123" }
     print(response)
-    return {
-        "question": response.question,  #NOTE change
-        "hint": response.hint,
-        "ans" : response.answer
-    }
     # return {
-    #     "question": response["question"],  #NOTE change
-    #     "hint": response["hint"],
-    #     "ans" : response["answer"]
+    #     "question": response.question,  #NOTE change
+    #     "hint": response.hint,
+    #     "ans" : response.answer
     # }
+    return {
+        "question": response["question"],  #NOTE change
+        "hint": response["hint"],
+        "ans" : response["answer"]
+    }
 
 @guess_species_router.post("/checkAnswer")
 def check_answer(submission: AnswerSubmission):
@@ -89,6 +89,9 @@ def check_answer(submission: AnswerSubmission):
     
     target_data = questions_db[current_question_index]
     actual_species_name = target_data.get("species_name") 
+
+    if submission.sid <= 0:
+        raise HTTPException(status_code=401,detail="Invalid user Id")
 
     if submission.answer == "correct":
         awarded_points = 2 if submission.hint_used else 5
@@ -98,10 +101,13 @@ def check_answer(submission: AnswerSubmission):
         print(f"Updating points for Student ID: {submission.sid}")
         points = db.fetchone("SELECT score from Leaderboard where sid=?",submission.sid)
         value = points[0] if points else 0
-        db.execute("INSERT INTO leaderboard VALUES(?,?)", submission.sid, value+awarded_points)
+        if not value:
+            db.execute("INSERT INTO leaderboard VALUES(?,?)", submission.sid, awarded_points)
+        else:
+            db.execute("UPDATE leaderboard SET score=? where sid=?", value+awarded_points, submission.sid)
+
         # update_student_score(student_id=submission.sid, points=awarded_points)
         # -----------------------------
-        
         return {
             "result": True, 
             "points": awarded_points

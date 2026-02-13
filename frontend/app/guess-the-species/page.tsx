@@ -78,9 +78,19 @@ const handleSubmit = async (e?: React.FormEvent) => {
 
     // 1. Retrieve the student ID (sid) from sessionStorage
     // We parse it to an integer to match your Pydantic model requirement
-    const sessionSid = sessionStorage.getItem('uid');
-    const sidInt = sessionSid ? parseInt(sessionSid, 10) : 0;
-
+    const user = localStorage.getItem('marine_user');
+    //const sidInt = user[] ? parseInt(sessionSid, 10) : 0;
+    let sidInt = 0;
+    if (user) {
+      try {
+        const userData = JSON.parse(user);
+        sidInt = userData.uid; // Accessing the 'uid' property (which is 1 in your case)
+        console.log('User ID found:', sidInt);
+      } catch (error) {
+        console.error("Error parsing user data from localStorage", error);
+      }
+    }
+    // console.log('count: %s, %d', sidInt);
     // 2. Substring Match Logic
     // Scientific names are long; we check if the user's input is contained within the full name
     const input = userAnswer.toLowerCase().trim();
