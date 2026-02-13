@@ -279,7 +279,7 @@ def confirm_clusters(cluster_ids: list[str] = Body(...)):
             del clusters_data["cluster_info"][cid]
 
     # updated JSON #NOTE : uncoment 
-    # with open(utils.CLUSTER_META_PATH, "w") as f:
-    #     json.dump(clusters_data, f, indent=2)
+    with open(utils.CLUSTER_META_PATH, "w") as f:
+        json.dump(clusters_data, f, indent=2)
 
     return {"message": f"Successfully moved {moved_count} images to training set."}
