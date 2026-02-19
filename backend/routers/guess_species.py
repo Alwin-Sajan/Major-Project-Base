@@ -71,7 +71,7 @@ def get_question():
     ))
     #response:QUIZ = llm_with_structure.invoke(conversation)
     response = {"question":"test","hint":'dsds',"answer":"ffd dd 123" }
-    print(response)
+    #print(response)
     # return {
     #     "question": response.question,  #NOTE change
     #     "hint": response.hint,
@@ -89,7 +89,7 @@ def check_answer(submission: AnswerSubmission):
     
     target_data = questions_db[current_question_index]
     actual_species_name = target_data.get("species_name") 
-
+    print(submission)
     if submission.sid <= 0:
         raise HTTPException(status_code=401,detail="Invalid user Id")
 
@@ -106,8 +106,6 @@ def check_answer(submission: AnswerSubmission):
         else:
             db.execute("UPDATE leaderboard SET score=? where sid=?", value+awarded_points, submission.sid)
 
-        # update_student_score(student_id=submission.sid, points=awarded_points)
-        # -----------------------------
         return {
             "result": True, 
             "points": awarded_points
@@ -118,3 +116,46 @@ def check_answer(submission: AnswerSubmission):
             "points": 0, 
             "correct_answer": actual_species_name
         }
+    
+@guess_species_router.get("/getpoints")
+def get_points(uid: int):
+
+    if not uid or uid == 0:
+        return {"points": 0} 
+    
+    try:
+        points = db.fetchone("SELECT score from Leaderboard where sid=?",uid)
+        value = points[0] if points else 0
+        return {"points": value} 
+    except Exception as e:
+        raise HTTPException(status_code=401,detail=f"Error occured: {str(e)}") 
+    
+
+@guess_species_router.get("/leaderboard")
+def get_leaderboard():
+    try:
+        query = """
+            SELECT 
+                s.sid, 
+                s.username, 
+                l.score,
+                s.institution
+            FROM leaderboard l
+            JOIN student s ON l.sid = s.sid
+            ORDER BY l.score DESC 
+            LIMIT 50
+        """
+        rows = db.fetchall(query)
+        
+        leaderboard_data = []
+        for row in rows:
+            leaderboard_data.append({
+                "sid": row[0],
+                "username": row[1],
+                "score": row[2],
+                "institution": row[3] # Using institution as a sub-label
+            })
+        print(leaderboard_data)
+        return leaderboard_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Leaderboard error: {str(e)}")

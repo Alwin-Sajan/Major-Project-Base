@@ -6,13 +6,14 @@ import torchvision
 from torchvision import transforms, datasets
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+import numpy as np
 
-
+EMBEDDING_DIM = 512
 # =====================================================
-# 1. Metric-Learning Backbone
+# 1. Metric-Learning Backbone (Improved)
 # =====================================================
 class ConvNeXtIncremental(nn.Module):
-    def __init__(self, embedding_dim=256, pretrained=True):
+    def __init__(self, embedding_dim=EMBEDDING_DIM, pretrained=True, dropout=0.2):
         super().__init__()
         weights = torchvision.models.ConvNeXt_Tiny_Weights.IMAGENET1K_V1 if pretrained else None
         backbone = torchvision.models.convnext_tiny(weights=weights)
@@ -25,9 +26,9 @@ class ConvNeXtIncremental(nn.Module):
             nn.Linear(in_features, 512),
             nn.LayerNorm(512),
             nn.ReLU(inplace=True),
+            nn.Dropout(dropout),  # Added dropout for regularization
             nn.Linear(512, embedding_dim)
         )
-
 
     def forward(self, x):
         x = self.features(x)
@@ -37,14 +38,16 @@ class ConvNeXtIncremental(nn.Module):
 
 
 # =====================================================
-# 2. Distance-Based Classifier
+# 2. Distance-Based Classifier (with learnable temperature)
 # =====================================================
 class CosineClassifier(nn.Module):
     def __init__(self, embedding_dim, n_classes):
         super().__init__()
         self.centers = nn.Parameter(torch.randn(n_classes, embedding_dim))
-        self.scale = nn.Parameter(torch.tensor(20.0)) 
-
+        self.scale = nn.Parameter(torch.tensor(20.0))  # Learnable temperature
+        
+        # Initialize centers properly
+        nn.init.kaiming_uniform_(self.centers, a=np.sqrt(5))
 
     def forward(self, emb):
         normalized_centers = F.normalize(self.centers, p=2, dim=1)
@@ -81,71 +84,71 @@ def build_final_prototypes(model, loader, device):
     unique_labels = torch.unique(labs)
     
     prototypes = torch.zeros(len(unique_labels), embs.shape[1])
-    for label in unique_labels:
-        prototypes[label] = embs[labs == label].mean(0)
+    for i, label in enumerate(unique_labels):
+        prototypes[i] = embs[labs == label].mean(0)
     
     return F.normalize(prototypes, p=2, dim=1)
 
 
 # =====================================================
-# 4. Training Loop with Best-Model Saving
+# 4. Enhanced Training Loop
 # =====================================================
-def train_model(data_root, epochs=40, batch_size=32, lr=1e-4, device="cuda"):
-    # Setup Data
-    # transform = transforms.Compose([
-    #     transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),  
-    #     transforms.RandomHorizontalFlip(),
-    #     transforms.ToTensor(),
-    #     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-    # ])
-
+def train_model(data_root, epochs=50, batch_size=32, lr=1e-4, device="cuda"):
+    # Enhanced data augmentation for better generalization
     train_transform = transforms.Compose([
-        transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
-        transforms.RandomHorizontalFlip(),
-        transforms.ColorJitter(0.2, 0.2, 0.2, 0.1),  # optional but good
+        transforms.RandomResizedCrop(224, scale=(0.5, 1.0)),  # More aggressive cropping
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.RandomRotation(15),
+        transforms.ColorJitter(0.4, 0.4, 0.4, 0.1),
+        transforms.RandomGrayscale(p=0.1),
+        transforms.GaussianBlur(kernel_size=(5, 5), sigma=(0.1, 2.0)),
         transforms.ToTensor(),
-        transforms.Normalize(
-            [0.485, 0.456, 0.406],
-            [0.229, 0.224, 0.225]
-        )
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
 
     val_transform = transforms.Compose([
         transforms.Resize(256),
         transforms.CenterCrop(224),
         transforms.ToTensor(),
-        transforms.Normalize(
-            [0.485, 0.456, 0.406],
-            [0.229, 0.224, 0.225]
-        )
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
 
-
+    # Load datasets
     train_ds = datasets.ImageFolder(os.path.join(data_root, "train"), train_transform)
     val_ds = datasets.ImageFolder(os.path.join(data_root, "val"), val_transform)
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=4)
-    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False)
+    
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, 
+                            num_workers=4, pin_memory=True)
+    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False,
+                          num_workers=4, pin_memory=True)
 
-
-    model = ConvNeXtIncremental().to(device)
-    classifier = CosineClassifier(256, len(train_ds.classes)).to(device)
+    # Initialize model and classifier
+    model = ConvNeXtIncremental(embedding_dim=EMBEDDING_DIM, dropout=0.2).to(device)
+    classifier = CosineClassifier(EMBEDDING_DIM, len(train_ds.classes)).to(device)
+    
+    # Different learning rates for different parts
     optimizer = torch.optim.AdamW([
-        {'params': model.features.parameters(), 'lr': 3e-5},
-        {'params': model.proj.parameters(),     'lr': 1e-4},
-        {'params': classifier.parameters(),     'lr': 1e-4},
+        {'params': model.features.parameters(), 'lr': 1e-4},  # Higher for backbone
+        {'params': model.proj.parameters(), 'lr': 2e-4},
+        {'params': classifier.parameters(), 'lr': 2e-4},
     ], weight_decay=1e-4)
+    
+    # Cosine annealing scheduler
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-6)
+    
+    # Loss with label smoothing
     criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
     
+    # Training tracking
     best_acc = 0.0
+    patience = 10
+    epochs_no_improve = 0
+    min_delta = 0.001  # 0.1% minimum improvement
+    
     os.makedirs("models", exist_ok=True)
 
-
-    patience = 5 
-    epochs_no_improve = 0
-    min_delta = 1e-4    
-
-
     for epoch in range(epochs):
+        # Training phase
         model.train()
         classifier.train()
         running_loss = 0.0
@@ -159,81 +162,114 @@ def train_model(data_root, epochs=40, batch_size=32, lr=1e-4, device="cuda"):
             
             optimizer.zero_grad()
             loss.backward()
+            
+            # Gradient clipping for stability
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            
             optimizer.step()
             
             running_loss += loss.item()
             pbar.set_postfix({'loss': f"{loss.item():.4f}"})
 
-
+        # Validation phase
         val_acc = evaluate(model, classifier, val_loader, device)
-        print(f"Validation Accuracy: {val_acc:.4f}")
+        current_lr = optimizer.param_groups[0]['lr']
+        print(f"Epoch {epoch+1}: Val Acc: {val_acc:.4f}, LR: {current_lr:.2e}")
+        
+        # Learning rate scheduling
+        scheduler.step()
 
-
-        # --- SAVE BEST MODEL AFTER EACH EPOCH ---
-        prototypes = build_final_prototypes(model, train_loader, device)
-
+        # Save best model (with classifier!)
         if val_acc > best_acc + min_delta:
             best_acc = val_acc
+            epochs_no_improve = 0
+            
+            # Build prototypes for the best model
+            prototypes = build_final_prototypes(model, train_loader, device)
+            
+            # Save everything
             torch.save({
                 'epoch': epoch,
                 'model_state': model.state_dict(),
                 'classifier_state': classifier.state_dict(),
                 'prototypes': prototypes,
+                'class_to_idx': train_ds.class_to_idx,
                 'classes': train_ds.classes,
-                'acc': val_acc
+                'val_acc': val_acc
             }, "models/convnext_best_weights.pth")
             print(f"⭐ New Best Model Saved (Acc: {val_acc:.4f})")
         else:
             epochs_no_improve += 1
             print(f"No improvement for {epochs_no_improve} epoch(s)")
 
-
+        # Early stopping
         if epochs_no_improve >= patience:
             print("🛑 Early stopping triggered")
             break
 
-
-    # --- FINAL STEP: GENERATE PROTOTYPES FOR OOD ---
-    print("Training finished. Loading best weights to generate final prototypes...")
+    # Load best model and save final version
+    print("\nTraining finished. Loading best model...")
     checkpoint = torch.load("models/convnext_best_weights.pth")
     model.load_state_dict(checkpoint['model_state'])
     
-    prototypes = build_final_prototypes(model, train_loader, device)
+    # IMPORTANT: Load the classifier state too!
+    classifier.load_state_dict(checkpoint['classifier_state'])
+    
+    # Build final prototypes
+    final_prototypes = build_final_prototypes(model, train_loader, device)
+    
+    # Save final model with everything
+    torch.save({
+        'model_state': model.state_dict(),
+        'classifier_state': classifier.state_dict(),
+        'prototypes': final_prototypes,
+        'class_to_idx': train_ds.class_to_idx,
+        'classes': train_ds.classes,
+        'val_acc': best_acc
+    }, "models/convnext_final_for_ood.pth")
+    
+    print(f"✅ Final Model Saved with Accuracy: {best_acc:.4f}")
+    return best_acc
 
-    classifier = CosineClassifier(256, len(datasets.ImageFolder(os.path.join(data_root, "train"), train_transform).classes)).to(device)
-    # torch.save({
-    #     'model_state': model.state_dict(),
-    #     'prototypes': prototypes,
-    #     'classes': train_ds.classes,
-    #     'classifier_state': classifier.state_dict(),
-    # }, "models/convnext_final_for_ood.pth")
-    print("✅ Final Model with Prototypes Saved.")
 
-
-
-def val_result_checker(data_root):
-    device = "cuda"
-    batch_size = 32
-
-    model = ConvNeXtIncremental().to(device)
+def validate_final_model(data_root, model_path="models/convnext_final_for_ood.pth"):
+    """Validate the saved model properly"""
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    
+    # Load checkpoint
+    checkpoint = torch.load(model_path, map_location=device)
+    
+    # Initialize model and classifier
+    model = ConvNeXtIncremental(embedding_dim=EMBEDDING_DIM).to(device)
+    classifier = CosineClassifier(EMBEDDING_DIM, len(checkpoint['classes'])).to(device)
+    
+    # Load states
+    model.load_state_dict(checkpoint['model_state'])
+    classifier.load_state_dict(checkpoint['classifier_state'])
+    
+    # Validation transform
     val_transform = transforms.Compose([
         transforms.Resize(256),
         transforms.CenterCrop(224),
         transforms.ToTensor(),
-        transforms.Normalize(
-            [0.485, 0.456, 0.406],
-            [0.229, 0.224, 0.225]
-        )
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
+    
+    # Load validation data
     val_ds = datasets.ImageFolder(os.path.join(data_root, "val"), val_transform)
-    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False)
-
-    classifier = CosineClassifier(256, len(val_ds.classes)).to(device)
-    val_acc = evaluate(model, classifier, val_loader, device)
-    print(f"Validation Accuracy: {val_acc:.4f}")
+    val_loader = DataLoader(val_ds, batch_size=32, shuffle=False, num_workers=4)
+    
+    # Evaluate
+    acc = evaluate(model, classifier, val_loader, device)
+    print(f"Final Model Validation Accuracy: {acc:.4f}")
+    return acc
 
 
 if __name__ == "__main__":
     DATA_PATH = "/media/abk/New Disk/DATASETS/first/updatedDataset"
-    train_model(DATA_PATH, epochs=5)
-    #val_result_checker(DATA_PATH)
+    
+    # Train the model
+    best_acc = train_model(DATA_PATH, epochs=50)
+    
+    # Validate the final model
+    validate_final_model(DATA_PATH)

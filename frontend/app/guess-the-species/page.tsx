@@ -1,19 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { 
-  Trophy, 
-  User, 
-  Lightbulb, 
-  Send, 
-  Loader2, 
-  CheckCircle2, 
-  XCircle,
-  HelpCircle,
-  Sparkles,
-  Waves,
-  ShieldCheckIcon,
-  AlertCircle
+  Trophy, User, Lightbulb, Send, Loader2, CheckCircle2, 
+  XCircle, HelpCircle, Sparkles, Waves, ShieldCheckIcon, AlertCircle
 } from 'lucide-react';
 import { useAuth } from '@/app/context/AuthContext'; 
 
@@ -30,12 +21,14 @@ interface CheckResponse {
 }
 
 export default function TriviaGame() {
-  const { user } = useAuth();
+  const { user: authUser } = useAuth();
 
+  // Game State
   const [score, setScore] = useState<number>(0);
   const [currentQuestion, setCurrentQuestion] = useState<QuestionData | null>(null);
   const [userAnswer, setUserAnswer] = useState<string>('');
   
+  // UI State
   const [isLoading, setIsLoading] = useState<boolean>(true); 
   const [isChecking, setIsChecking] = useState<boolean>(false);
   const [showHint, setShowHint] = useState<boolean>(false); 
@@ -44,8 +37,22 @@ export default function TriviaGame() {
   const [streak, setStreak] = useState<number>(0);
   const [revealAnswer, setRevealAnswer] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchQuestion();
+  // 1. Fetch points from database endpoint
+  const fetchPoints = useCallback(async () => {
+    const userString = localStorage.getItem('marine_user');
+    if (!userString) return;
+    let sidInt = 0;
+    try {
+      const userData = JSON.parse(userString);
+      sidInt = userData.uid
+      const response = await fetch(`http://127.0.0.1:8000/getpoints?uid=${sidInt}`);
+      if (response.ok) {
+        const data = await response.json();
+        setScore(data.points);
+      }
+    } catch (error) {
+      console.error("Failed to fetch points:", error);
+    }
   }, []);
 
   const fetchQuestion = async () => {
@@ -67,74 +74,61 @@ export default function TriviaGame() {
     }
   };
 
+  useEffect(() => {
+    fetchPoints();
+    fetchQuestion();
+  }, [fetchPoints]);
 
-const handleSubmit = async (e?: React.FormEvent) => {
+  const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    
-    // Guard clause: prevent submission if empty, already checking, or already solved
     if (!userAnswer.trim() || isChecking || feedback === 'correct') return;
     
     setIsChecking(true);
 
-    // 1. Retrieve the student ID (sid) from sessionStorage
-    // We parse it to an integer to match your Pydantic model requirement
-    const user = localStorage.getItem('marine_user');
-    //const sidInt = user[] ? parseInt(sessionSid, 10) : 0;
+    const userString = localStorage.getItem('marine_user');
     let sidInt = 0;
-    if (user) {
+    if (userString) {
       try {
-        const userData = JSON.parse(user);
-        sidInt = userData.uid; // Accessing the 'uid' property (which is 1 in your case)
-        console.log('User ID found:', sidInt);
+        const userData = JSON.parse(userString);
+        sidInt = userData.uid;
       } catch (error) {
-        console.error("Error parsing user data from localStorage", error);
+        console.error("Error parsing user data", error);
       }
     }
-    // console.log('count: %s, %d', sidInt);
-    // 2. Substring Match Logic
-    // Scientific names are long; we check if the user's input is contained within the full name
+
+    // Substring Match Logic for Scientific Names
     const input = userAnswer.toLowerCase().trim();
     const actualAns = currentQuestion?.ans?.toLowerCase().trim() || "";
-    
-    // We require at least 3 characters to avoid "accidental" matches with single letters
     const isActuallyCorrect = input.length > 2 && actualAns.includes(input);
 
     try {
-      // 3. Send the structured data to the backend
       const response = await fetch('http://127.0.0.1:8000/checkAnswer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-            sid: sidInt,                           // The user ID from session
-            answer: isActuallyCorrect ? "correct" : "incorrect", // Status string
-            hint_used: showHint                    // Boolean flag
+            sid: sidInt,
+            answer: isActuallyCorrect ? "correct" : "incorrect",
+            hint_used: showHint 
         }),
       });
 
-      if (!response.ok) throw new Error('Failed to verify answer with server');
+      if (!response.ok) throw new Error('Failed to verify');
       
       const data: CheckResponse = await response.json();
 
       if (data.result) {
-        // Success path
         setFeedback('correct');
         setLastPointsEarned(data.points); 
-        setScore(prev => prev + data.points);
+        setScore(prev => prev + data.points); 
         setStreak(prev => prev + 1);
-        
-        // Auto-fetch next question after a short delay
-        setTimeout(() => { 
-            fetchQuestion(); 
-        }, 2000);
+        setTimeout(() => { fetchQuestion(); }, 2000);
       } else {
-        // Failure path - backend returns the full species name for "revealAnswer"
         setFeedback('wrong');
         setStreak(0);
         setRevealAnswer(data.correct_answer || null);
       }
     } catch (error) {
       console.error("Submission error:", error);
-      // Optional: Add a toast or error message here for the user
     } finally {
       setIsChecking(false);
     }
@@ -154,15 +148,32 @@ const handleSubmit = async (e?: React.FormEvent) => {
                 <Waves className="w-6 h-6 text-white" />
               </div>
               <h1 className="hidden sm:block text-xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-                MarineQuiz <span className='text-red-500 font-medium'>Alpha</span>
+                MarineQuiz <span className='text-red-500 font-medium italic'>Alpha</span>
               </h1>
             </div>
 
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-3 px-4 py-2 bg-slate-800/50 rounded-full border border-slate-700/50">
+              <Link href="/leaderboard">
+                <button className="flex items-center gap-3 px-4 py-2 bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 rounded-full shadow-lg hover:shadow-pink-500/40 hover:scale-105 transition-all duration-300 active:scale-95">
+                  <Trophy className="w-5 h-5 text-white animate-pulse" />
+                  <div className="flex flex-col leading-none text-left">
+                    <span className="text-[10px] text-white/80 font-medium uppercase tracking-wider">
+                      Leaderboard
+                    </span>
+                    <span className="text-lg font-bold text-white">
+                      View Rankings
+                    </span>
+                  </div>
+                </button> 
+              </Link>
+          </div>
+
+
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3 px-4 py-2 bg-slate-800/50 rounded-full border border-slate-700/50 shadow-inner">
                 <Trophy className={`w-5 h-5 ${streak > 2 ? 'text-yellow-400 animate-bounce' : 'text-blue-400'}`} />
                 <div className="flex flex-col leading-none">
-                  <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">Score</span>
+                  <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Total Score</span>
                   <span className="text-lg font-bold text-white tabular-nums">{score}</span>
                 </div>
               </div>
@@ -170,12 +181,12 @@ const handleSubmit = async (e?: React.FormEvent) => {
               <div className="flex items-center gap-3 pl-1 pr-4 py-1 bg-slate-800/50 rounded-full border border-slate-700/50">
                 <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-500 to-cyan-600 p-[2px]">
                   <div className="w-full h-full rounded-full bg-slate-900 flex items-center justify-center overflow-hidden">
-                    {user?.type === 'student' ? <User className="w-5 h-5 text-slate-300" /> : <ShieldCheckIcon className="w-5 h-5 text-purple-400" />}
+                    {authUser?.type === 'student' ? <User className="w-5 h-5 text-slate-300" /> : <ShieldCheckIcon className="w-5 h-5 text-purple-400" />}
                   </div>
                 </div>
                 <div className="flex flex-col leading-tight">
-                  <span className="text-sm font-bold text-slate-100">{user?.user || "Guest"}</span>
-                  <span className="text-[10px] text-cyan-400 uppercase tracking-tighter font-semibold">{user?.type || "user"}</span>
+                  <span className="text-sm font-bold text-slate-100">{authUser?.user || "Guest"}</span>
+                  <span className="text-[10px] text-cyan-400 uppercase tracking-tighter font-semibold">{authUser?.type || "user"}</span>
                 </div>
               </div>
             </div>
@@ -192,7 +203,7 @@ const handleSubmit = async (e?: React.FormEvent) => {
             {isLoading ? (
               <div className="flex flex-col items-center justify-center py-12 space-y-4">
                 <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
-                <p className="text-slate-400 animate-pulse">Syncing Specimen Data...</p>
+                <p className="text-slate-400 animate-pulse font-medium tracking-wide">Fetching Specimen Details...</p>
               </div>
             ) : (
               <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -228,7 +239,7 @@ const handleSubmit = async (e?: React.FormEvent) => {
                       if (feedback === 'wrong') { setFeedback(null); setRevealAnswer(null); }
                     }}
                     onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-                    placeholder="Enter species name..."
+                    placeholder="Enter scientific name..."
                     disabled={feedback === 'correct'}
                     className={`w-full bg-slate-800/30 text-white placeholder:text-slate-600 px-6 py-5 rounded-xl border-2 outline-none transition-all duration-300 text-lg
                       ${feedback === 'correct' ? 'border-green-500/50 bg-green-500/10' : feedback === 'wrong' ? 'border-red-500/50 bg-red-500/10' : 'border-slate-700 focus:border-blue-500'}
@@ -242,16 +253,16 @@ const handleSubmit = async (e?: React.FormEvent) => {
                         <span className="text-xs font-bold text-red-400 uppercase tracking-widest">Learning Discovery</span>
                       </div>
                       <p className="text-slate-300 text-sm">
-                        Correct Identification: <span className="text-white font-bold italic">{revealAnswer}</span>
+                        Correct ID: <span className="text-white font-bold italic">{revealAnswer}</span>
                       </p>
-                      <button onClick={fetchQuestion} className="mt-3 text-xs text-blue-400 hover:text-cyan-400 font-medium">
-                        Next Challenge →
+                      <button onClick={fetchQuestion} className="mt-3 text-xs text-blue-400 hover:text-cyan-400 font-medium flex items-center gap-1 transition-all">
+                        Skip to Next Specimen <Send className="w-3 h-3" />
                       </button>
                     </div>
                   )}
 
-                  <button onClick={handleSubmit} disabled={!userAnswer || isChecking || feedback === 'correct'} className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all duration-300 ${feedback === 'correct' ? 'bg-green-600/50' : 'bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white shadow-lg shadow-blue-500/10'} disabled:opacity-50`}>
-                    {feedback === 'correct' ? <><Sparkles className="w-5 h-5" /> Verified</> : <><Send className="w-5 h-5" /> Submit Answer</>}
+                  <button onClick={handleSubmit} disabled={!userAnswer || isChecking || feedback === 'correct'} className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all duration-300 ${feedback === 'correct' ? 'bg-green-600/50 cursor-default' : 'bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white shadow-lg shadow-blue-500/10'} disabled:opacity-50`}>
+                    {feedback === 'correct' ? <><Sparkles className="w-5 h-5" /> Verified</> : isChecking ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Send className="w-5 h-5" /> Submit Answer</>}
                   </button>
                 </div>
               </div>

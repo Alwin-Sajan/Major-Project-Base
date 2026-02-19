@@ -2,7 +2,6 @@ import torch
 import torch.nn.functional as F
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
-import utils
 from train_convvnext import ConvNeXtIncremental, CosineClassifier
 
 import numpy as np
@@ -14,7 +13,7 @@ from sklearn.metrics import confusion_matrix
 # PATHS
 # --------------------------------------------------
 val_dir = "/media/abk/New Disk/DATASETS/first/updatedDataset/val"
-checkpoint_path = utils.CONVNEXT_MODEL_PATH
+checkpoint_path = "/home/abk/abk/projects/Major-project-basic-ui/models/newconvnext_best_weights.pth"
 
 batch_size = 32
 embedding_dim = 256
