@@ -335,7 +335,7 @@ const analyzeImage = async () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-slate-800/50 rounded-lg p-4 text-center">
                     <p className="text-slate-400 text-sm mb-1">Model</p>
-                    <p className="text-white font-semibold">ResNet-18</p>
+                    <p className="text-white font-semibold">ConvNext-Tiny</p>
                   </div>
                   <div className="bg-slate-800/50 rounded-lg p-4 text-center">
                     <p className="text-slate-400 text-sm mb-1">Status</p>
@@ -344,13 +344,13 @@ const analyzeImage = async () => {
                 </div>
 
                 {/* Chat with AI Button */}
-                <button
+                {/* <button
                   onClick={() => setShowChat(!showChat)}
                   className="w-full mt-4 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-2"
                 >
                   <Sparkles className="w-5 h-5" />
                   {showChat ? 'Hide AI Assistant' : 'Ask AI About This Species'}
-                </button>
+                </button> */}
               </div>
             )}
 

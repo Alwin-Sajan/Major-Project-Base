@@ -10,7 +10,6 @@ from fastapi import HTTPException, Body
 from fastapi import APIRouter
 
 
-
 # --- CONFIGURATION ---
 device = utils.device
 embedding_net = utils.embedding_net
@@ -56,7 +55,7 @@ async def runcluster():
 async def runcluster():
     print("staring clustering")
     #utils.run_clustering()
-    utils.run_clustering()
+    utils.run_clustering_HDBSCAN()
     print("ending clustering")
     return {None}
 
@@ -120,6 +119,9 @@ async def testingifAnImageisKNOWN():
 
 
 
+
+# NOTE - starts here
+
 @clustering_router.get("/clusters")
 def get_all_clusters():
     """Returns a list of clusters with a 'cover' image for the UI"""
@@ -161,9 +163,6 @@ def get_cluster_details(cluster_id: str):
         for i in valid_indices
     ]
 
-    
-
-    
     return {
         "cluster": cluster_id,
         "total": len(indices),
@@ -280,7 +279,7 @@ def confirm_clusters(cluster_ids: list[str] = Body(...)):
             del clusters_data["cluster_info"][cid]
 
     # updated JSON #NOTE : uncoment 
-    # with open(utils.CLUSTER_META_PATH, "w") as f:
-    #     json.dump(clusters_data, f, indent=2)
+    with open(utils.CLUSTER_META_PATH, "w") as f:
+        json.dump(clusters_data, f, indent=2)
 
     return {"message": f"Successfully moved {moved_count} images to training set."}
