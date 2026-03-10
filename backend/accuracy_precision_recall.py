@@ -3,24 +3,20 @@ import torch.nn.functional as F
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from train_convvnext import ConvNeXtIncremental, CosineClassifier
-
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support, classification_report
 
 # --------------------------------------------------
-# PATHS
+# PATHS & CONFIG
 # --------------------------------------------------
 val_dir = "/media/abk/New Disk/DATASETS/first/updatedDataset/val"
 checkpoint_path = "/home/abk/abk/projects/Major-project-basic-ui/models/newconvnext_best_weights.pth"
-
 batch_size = 32
 embedding_dim = 256
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # --------------------------------------------------
-# TRANSFORMS
+# TRANSFORMS & DATALOADER
 # --------------------------------------------------
 val_transforms = transforms.Compose([
     transforms.Resize((224, 224)),
@@ -36,23 +32,18 @@ val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 num_classes = len(val_dataset.classes)
 
 # --------------------------------------------------
-# BUILD MODELS
+# BUILD & LOAD MODELS
 # --------------------------------------------------
 model = ConvNeXtIncremental(
     embedding_dim=embedding_dim,
     pretrained=False
 )
-
 classifier = CosineClassifier(
     embedding_dim=embedding_dim,
     n_classes=num_classes
 )
 
-# --------------------------------------------------
-# LOAD CHECKPOINT
-# --------------------------------------------------
 checkpoint = torch.load(checkpoint_path, map_location=device)
-
 model.load_state_dict(checkpoint["model_state"])
 classifier.load_state_dict(checkpoint["classifier_state"])
 
@@ -60,74 +51,61 @@ model.to(device).eval()
 classifier.to(device).eval()
 
 # --------------------------------------------------
-# ACCURACY + STORE PREDICTIONS
+# INFERENCE LOOP
 # --------------------------------------------------
-correct = 0
-total = 0
-class_correct = [0] * num_classes
-class_total = [0] * num_classes
-
 all_preds = []
 all_labels = []
 
+print("Running inference on validation set...")
 with torch.no_grad():
     for images, labels in val_loader:
         images = images.to(device)
         labels = labels.to(device)
-
+        
         embeddings = model(images)
         logits = classifier(embeddings)
         preds = logits.argmax(dim=1)
-
-        # Store predictions for confusion matrix
+        
         all_preds.extend(preds.cpu().numpy())
         all_labels.extend(labels.cpu().numpy())
 
-        total += labels.size(0)
-        correct += (preds == labels).sum().item()
-
-        for i in range(len(labels)):
-            label = labels[i].item()
-            class_correct[label] += (preds[i] == label).item()
-            class_total[label] += 1
+# Convert to numpy arrays
+y_true = np.array(all_labels)
+y_pred = np.array(all_preds)
 
 # --------------------------------------------------
-# PRINT RESULTS
+# CALCULATE METRICS
 # --------------------------------------------------
-print(f"\nOverall Accuracy: {100 * correct / total:.2f}%")
+# Macro: Calculates metrics for each label, and finds their unweighted mean. 
+# This does not take label imbalance into account.
+precision_macro, recall_macro, f1_macro, _ = precision_recall_fscore_support(y_true, y_pred, average='macro')
+overall_accuracy = accuracy_score(y_true, y_pred)
 
-print("\nPer-class Accuracy:")
-for i, cls in enumerate(val_dataset.classes):
-    acc = 100 * class_correct[i] / class_total[i] if class_total[i] > 0 else 0
-    print(f"{cls}: {acc:.2f}%")
+# Per-class metrics
+prec_per_cls, rec_per_cls, f1_per_cls, _ = precision_recall_fscore_support(y_true, y_pred, average=None)
 
 # --------------------------------------------------
-# CONFUSION MATRIX
+# PRINT DETAILED RESULTS
 # --------------------------------------------------
-cm = confusion_matrix(all_labels, all_preds)
+print("\n" + "="*50)
+print("FINAL EVALUATION RESULTS")
+print("="*50)
+print(f"{'Overall Accuracy:':<20} {overall_accuracy * 100:.2f}%")
+print(f"{'Precision:':<20} {precision_macro * 100:.2f}%")
+print(f"{'Recall:':<20} {recall_macro * 100:.2f}%")
+print(f"{'F1-Score:':<20} {f1_macro * 100:.2f}%")
+print("-" * 50)
 
-plt.figure(figsize=(14, 12))
-sns.heatmap(
-    cm,
-    annot=True,
-    fmt="d",
-    cmap="Blues",
-    xticklabels=val_dataset.classes,
-    yticklabels=val_dataset.classes
-)
+print("\nPER-CLASS METRICS:")
+header = f"{'Class Name':<20} | {'Prec. (%)':<10} | {'Rec. (%)':<10} | {'F1 (%)':<10}"
+print(header)
+print("-" * len(header))
 
-plt.xlabel("Predicted Label")
-plt.ylabel("True Label")
-plt.title("Confusion Matrix")
+for i, class_name in enumerate(val_dataset.classes):
+    print(f"{class_name:<20} | {prec_per_cls[i]*100:>9.2f} | {rec_per_cls[i]*100:>9.2f} | {f1_per_cls[i]*100:>9.2f}")
 
-plt.xticks(rotation=45, ha="right")
-plt.yticks(rotation=0)
-
-plt.tight_layout()
-
-# Save image
-# plt.savefig(r"/home/abk/abk/projects/Major-project-basic-ui/backend/Results/CONVNEXT_confusion_matrix.png", dpi=300)
-
-# Display image
-plt.show()
-plt.close()
+# Alternative: Scikit-learn's built-in formatted report
+print("\n" + "="*50)
+print("SKLEARN CLASSIFICATION REPORT")
+print("="*50)
+print(classification_report(y_true, y_pred, target_names=val_dataset.classes))
