@@ -533,19 +533,7 @@ export default function TriviaGame() {
         </motion.div>
       </main>
 
-      {/* Footer */}
-      <motion.footer
-        className="relative border-t border-blue-900/40 backdrop-blur-md bg-gradient-to-r from-slate-900/80 to-blue-900/40 mt-12"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1 }}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 text-center">
-          <p className="text-slate-400 text-sm">
-            🌊 Marine.AI - Adaptive Species Identification with Open-Set Detection & Incremental Learning
-          </p>
-        </div>
-      </motion.footer>
+
     </div>
   );
 }

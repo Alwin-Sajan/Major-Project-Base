@@ -22,15 +22,15 @@ class QUIZ(BaseModel):
     hint: str = Field(..., description="The hint for the question in one line")
     answer: str = Field(..., description="The correct asnwer for the quiz")
 
-# llm = ChatOllama(
-#     model=utils.MODEL_LLAMA,
-#     temperature=0.0,
-#     disable_streaming=False,
-#     seed=43,
-#     num_predict=100
-# )
+llm = ChatOllama(
+    model=utils.MODEL_LLAMA,
+    temperature=0.0,
+    disable_streaming=False,
+    seed=43,
+    num_predict=100
+)
 
-# llm_with_structure = llm.with_structured_output(QUIZ)
+llm_with_structure = llm.with_structured_output(QUIZ)
 
 conversation = [
     SystemMessage(
@@ -69,19 +69,20 @@ def get_question():
     conversation.append(HumanMessage(
         f"the data is {q_data["text"]}. answer is {q_data["species_name"]} belongs to {q_data["genus"]} genus"
     ))
-    #response:QUIZ = llm_with_structure.invoke(conversation)
-    response = {"question":"test","hint":'dsds',"answer":"ffd dd 123" }
-    #print(response)
-    # return {
-    #     "question": response.question,  #NOTE change
-    #     "hint": response.hint,
-    #     "ans" : response.answer
-    # }
+    response:QUIZ = llm_with_structure.invoke(conversation)
+    print(response)
     return {
-        "question": response["question"],  #NOTE change
-        "hint": response["hint"],
-        "ans" : response["answer"]
+        "question": response.question,  #NOTE change
+        "hint": response.hint,
+        "ans" : response.answer
     }
+    #NOTE : TEST OUTPUT
+    # response = {"question":"test","hint":'dsds',"answer":"ffd dd 123" }
+    # return {
+    #     "question": response["question"],  #NOTE change
+    #     "hint": response["hint"],
+    #     "ans" : response["answer"]
+    # }
 
 @guess_species_router.post("/checkAnswer")
 def check_answer(submission: AnswerSubmission):

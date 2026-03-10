@@ -128,7 +128,7 @@ def run_evaluation(data_root, model_path, device="cuda"):
         plt.title("Confidence Distribution (Calibration for OOD)")
         plt.legend()
         plt.grid(True, alpha=0.3)
-        plt.savefig("ood_calibration_plot.png")
+        plt.savefig("/home/abk/abk/projects/Major-project-basic-ui/backend/Results/ood_calibration_plot.png")
         print("Saved calibration plot to 'ood_calibration_plot.png'")
     except Exception as e:
         print(f"Could not save plot: {e}")
