@@ -176,7 +176,19 @@ export default function ClusterViewUI() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {clusters.length === 0 ? (
+                // EMPTY STATE UI
+                <div className="flex flex-col items-center justify-center py-32 bg-slate-900/20 border-2 border-dashed border-slate-800 rounded-3xl">
+                  <div className="p-4 bg-slate-800/50 rounded-full mb-4">
+                    <Fish className="w-12 h-12 text-slate-500" />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-300">No clusters available</h3>
+                  <p className="text-slate-500 mt-2 max-w-xs text-center">
+                    It looks like the clustering process hasn't been run yet or there is no data to display.
+                  </p>
+                </div>
+              ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {clusters.map((c) => {
                 const isIdSelected = selectedClusterIds.includes(c.id);
                 return (
@@ -198,6 +210,7 @@ export default function ClusterViewUI() {
                 );
               })}
             </div>
+            )}
           </div>
         )}
 

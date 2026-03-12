@@ -13,10 +13,10 @@ from sklearn.metrics import confusion_matrix
 # PATHS
 # --------------------------------------------------
 val_dir = "/media/abk/New Disk/DATASETS/first/updatedDataset/val"
-checkpoint_path = "/home/abk/abk/projects/Major-project-basic-ui/models/newconvnext_best_weights.pth"
+checkpoint_path = "/home/abk/abk/projects/Major-project-basic-ui/models/convnext_best_weights.pth"
 
 batch_size = 32
-embedding_dim = 256
+embedding_dim = 512
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # --------------------------------------------------

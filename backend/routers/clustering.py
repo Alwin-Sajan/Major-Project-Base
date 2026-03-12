@@ -6,8 +6,10 @@ import torchvision.transforms as transforms
 import torch.nn.functional as F
 import shutil
 from PIL import Image
-from fastapi import HTTPException, Body
+from fastapi import HTTPException, Body, BackgroundTasks
 from fastapi import APIRouter
+
+from train_convnext_new import train_increment
 
 
 # --- CONFIGURATION ---
@@ -249,7 +251,7 @@ def move_images(source_id: str = Body(...), target_id: str = Body(...), indices:
 
 
 @clustering_router.post("/clusters/confirm")
-def confirm_clusters(cluster_ids: list[str] = Body(...)):
+def confirm_clusters(background_tasks: BackgroundTasks, cluster_ids: list[str] = Body(...)):
     clusters_data, all_images = get_data() 
 
     moved_count = 0
@@ -281,5 +283,11 @@ def confirm_clusters(cluster_ids: list[str] = Body(...)):
     # updated JSON #NOTE : uncoment 
     with open(utils.CLUSTER_META_PATH, "w") as f:
         json.dump(clusters_data, f, indent=2)
+    
+
+    #TRAINING
+    DATA_PATH = "/media/abk/New Disk/DATASETS/CLUSTER_INCREMENTAL_LEARNING"
+    background_tasks.add_task(train_increment) # DATA_PATH, epochs=50)
+
 
     return {"message": f"Successfully moved {moved_count} images to training set."}

@@ -68,6 +68,24 @@ def evaluate(model, classifier, loader, device):
             total += x.size(0)
     return correct / total
 
+@torch.no_grad()
+def build_final_prototypes(model, loader, device):
+    model.eval()
+    all_embs, all_labs = [], []
+    for x, y in loader:
+        all_embs.append(model(x.to(device)).cpu())
+        all_labs.append(y)
+    
+    embs = torch.cat(all_embs)
+    labs = torch.cat(all_labs)
+    unique_labels = torch.unique(labs)
+    
+    prototypes = torch.zeros(len(unique_labels), embs.shape[1])
+    for i, label in enumerate(unique_labels):
+        prototypes[i] = embs[labs == label].mean(0)
+    
+    return F.normalize(prototypes, p=2, dim=1)
+
 # =====================================================
 # 4. Training Loop (Fixed Logic)
 # =====================================================
@@ -113,7 +131,7 @@ def train_model(data_root, epochs=50, batch_size=32, device="cuda"):
     patience = 12 # Slightly more patience for deep fine-tuning
     epochs_no_improve = 0
     
-    os.makedirs("models", exist_ok=True)
+    #os.makedirs("models", exist_ok=True)
 
     for epoch in range(epochs):
         model.train()
@@ -142,11 +160,17 @@ def train_model(data_root, epochs=50, batch_size=32, device="cuda"):
         if val_acc > best_acc:
             best_acc = val_acc
             epochs_no_improve = 0
+
+            prototypes = build_final_prototypes(model, train_loader, device)
             torch.save({
+                'epoch': epoch,
                 'model_state': model.state_dict(),
                 'classifier_state': classifier.state_dict(),
+                'prototypes': prototypes,
+                'class_to_idx': train_ds.class_to_idx,
                 'classes': train_ds.classes,
-            }, "/home/abk/abk/projects/Major-project-basic-ui/models/convnext_best_weights.pth")
+                'val_acc': val_acc
+            }, "/home/abk/abk/projects/Major-project-basic-ui/models/new_convnext_mar11-2.pth")
             print(f"⭐ New Best Model: {val_acc:.4f}")
         else:
             epochs_no_improve += 1
@@ -157,7 +181,82 @@ def train_model(data_root, epochs=50, batch_size=32, device="cuda"):
 
     return best_acc
 
+#### INCREMENTAL #######
+def train_increment(data_root="/media/abk/New Disk/DATASETS/CLUSTER_INCREMENTAL_LEARNING", epochs=20, batch_size=8, device="cuda"):
+
+    
+    # Standard transforms (Keeping it simple for prototype)
+    train_transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomRotation(10),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    ])
+
+    # Load everything as training data
+    train_ds = datasets.ImageFolder(data_root, train_transform)
+    train_loader = DataLoader(
+        train_ds, 
+        batch_size=min(batch_size, len(train_ds)), 
+        shuffle=True, 
+        num_workers=2, 
+        pin_memory=True
+    )
+
+    num_classes = len(train_ds.classes)
+    print(f"🚀 Starting Prototype Training: {num_classes} classes, {len(train_ds)} total images.")
+
+    # Initialize Model & Classifier
+    model = ConvNeXtIncremental(embedding_dim=EMBEDDING_DIM).to(device)
+    classifier = CosineClassifier(EMBEDDING_DIM, num_classes).to(device)
+    
+    # Fast learning for prototype
+    optimizer = torch.optim.AdamW([
+        {'params': model.features.parameters(), 'lr': 1e-5}, 
+        {'params': model.proj.parameters(), 'lr': 2e-4}, # Faster head learning
+        {'params': classifier.parameters(), 'lr': 2e-4},
+    ], weight_decay=0.01)
+    
+    criterion = nn.CrossEntropyLoss()
+    save_path = "/home/abk/abk/projects/Major-project-basic-ui/models/convnext_incremental_weights.pth"
+
+    model.train()
+    classifier.train()
+
+    for epoch in range(epochs):
+        running_loss = 0.0
+        pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{epochs}")
+        
+        for x, y in pbar:
+            x, y = x.to(device), y.to(device)
+            
+            logits = classifier(model(x))
+            loss = criterion(logits, y)
+            
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            
+            running_loss += loss.item()
+            pbar.set_postfix({'loss': f"{loss.item():.4f}"})
+
+    # Save the final state after all epochs
+    torch.save({
+        'model_state': model.state_dict(),
+        'classifier_state': classifier.state_dict(),
+        'classes': train_ds.classes,
+        'class_to_idx': train_ds.class_to_idx
+    }, save_path)
+    
+    print(f"✅ Prototype Model Saved to {save_path}")
+    return True
+
+
 if __name__ == "__main__":
     # Ensure this path matches your "New Disk" mount point
     DATA_PATH = "/media/abk/New Disk/DATASETS/first/updatedDataset"
-    train_model(DATA_PATH)
+    acc = train_model(DATA_PATH)
+    print(acc)
+
+
