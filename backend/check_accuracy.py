@@ -137,7 +137,7 @@ if __name__ == "__main__":
     # Update paths as needed
     import utils
     DATA_PATH = "/media/abk/New Disk/DATASETS/first/updatedDataset"
-    MODEL_PATH = utils.CONVNEXT_MODEL_PATH
+    MODEL_PATH = r"/home/abk/abk/projects/Major-project-basic-ui/models/convnext_best_weights.pth"
     
     device = "cuda" if torch.cuda.is_available() else "cpu"
     run_evaluation(DATA_PATH, MODEL_PATH, device)

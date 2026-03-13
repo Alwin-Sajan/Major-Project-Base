@@ -379,7 +379,7 @@ export default function TriviaGame() {
                         whileHover={{ x: 5 }}
                       >
                         <Lightbulb className="w-4 h-4 group-hover/hint:scale-125 transition-transform" />
-                        <span>Need Help? <span className="text-xs text-slate-500">(-5 pts)</span></span>
+                        <span>Need Help? <span className="text-xs text-slate-500">(points reduction)</span></span>
                       </motion.button>
                     ) : (
                       <motion.div
