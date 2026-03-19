@@ -198,9 +198,9 @@ export default function TriviaGame() {
               <Fish className="w-6 h-6 text-white" />
             </motion.div>
             <div>
-              <h1 className="hidden sm:block text-xl font-bold bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
+              <a href="/"><h1 className="hidden sm:block text-xl font-bold bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
                 Marine.AI Quiz
-              </h1>
+              </h1></a>
               <p className="hidden md:block text-xs text-slate-400">Identify. Learn. Discover.</p>
             </div>
           </motion.div>

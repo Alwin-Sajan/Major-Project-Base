@@ -164,7 +164,7 @@ const analyzeImage = async () => {
             </div>
             <div>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-                Marine Species Identification <span className='text-red-500 font-medium'>With OOD</span>
+               <a href="/"> Marine Species Identification </a><span className='text-red-500 font-medium'>With OOD</span>
               </h1>
               <p className="text-sm text-slate-400 mt-1">
                 Adaptive Detection with Open-Set & Incremental Learning

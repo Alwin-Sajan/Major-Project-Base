@@ -284,8 +284,9 @@ const MarineChatbot = () => {
           >
             <Menu className="w-5 h-5" />
           </button>
-          <div className="ml-4">
-            <h2 className="text-sm font-medium text-gray-300">Marine Species Assistant</h2>
+          <div className="ml-4 flex justify-center gap-4 items-center">
+            <h2 className="text-sm font-medium text-gray-300 ">Marine Species Assistant</h2>
+            <a href='/' className='text-sm font-medium text-gray-300 bg-blue-500 p-2 rounded-lg'>Home</a>
           </div>
         </div>
 
