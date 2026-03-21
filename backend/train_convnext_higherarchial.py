@@ -9,7 +9,6 @@ from tqdm import tqdm
 import numpy as np
 from PIL import Image
 
-# Use 768 for future-proofing and ConvNeXt-Tiny native compatibility
 EMBEDDING_DIM = 768 
 
 # =====================================================
@@ -23,7 +22,6 @@ class TaxonomicDataset(Dataset):
         
         self.families, self.genera, self.species_classes = set(), set(), set()
         
-        # Walk through: Family/Genus/Species
         for family in sorted(os.listdir(root_dir)):
             fam_path = os.path.join(root_dir, family)
             if not os.path.isdir(fam_path): continue
@@ -106,7 +104,7 @@ class MultiHeadCosineClassifier(nn.Module):
         }
 
 # =====================================================
-# 3. Training & Incremental Logic
+# 3. Training Utilities
 # =====================================================
 def get_sampler(ds):
     counts = np.bincount(ds.targets)
@@ -126,23 +124,25 @@ def build_prototypes(model, ds, device):
     protos = torch.stack([embs[labs == i].mean(0) for i in range(len(ds.species_classes))])
     return F.normalize(protos, p=2, dim=1)
 
-def train_incremental(data_root, checkpoint_path=None, epochs=30):
+# =====================================================
+# 4. Main Incremental Loop with Freeze Logic
+# =====================================================
+def train_incremental(data_root, checkpoint_path=None, epochs=30, freeze_epochs=5, patience=7):
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    
-    # Setup Datasets
+    print(device)
+    best_acc = 0.0
+    epochs_no_improve = 0
+    min_delta = 0.001 # Must improve by at least 0.1% to reset patience
+
+
     t_trans = transforms.Compose([
-        transforms.Resize(256),
-        transforms.RandomCrop(224),
+        transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
         transforms.RandomHorizontalFlip(),
-        transforms.RandomVerticalFlip(p=0.2),  # Useful if fish are captured at odd angles/swimming down
-        transforms.RandomRotation(15),         # Slightly reduced to prevent "extreme" tilts
+        transforms.RandomVerticalFlip(p=0.2),  
+        transforms.RandomRotation(15),         
         transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.2, hue=0.1),
-        transforms.RandomGrayscale(p=0.1),     # Force model to learn shape/patterns, not just color
-        transforms.RandomAffine(
-            degrees=0,                         # Rotation is already handled above
-            translate=(0.1, 0.1), 
-            scale=(0.9, 1.1)                   # Tighter scaling to preserve detail
-        ),
+        transforms.RandomGrayscale(p=0.1),     
+        transforms.RandomAffine(degrees=0, translate=(0.1, 0.1), scale=(0.9, 1.1)),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
@@ -155,20 +155,21 @@ def train_incremental(data_root, checkpoint_path=None, epochs=30):
     
     train_ds = TaxonomicDataset(os.path.join(data_root, "train"), t_trans)
     val_ds = TaxonomicDataset(os.path.join(data_root, "val"), v_trans)
-    train_loader = DataLoader(train_ds, batch_size=32, sampler=get_sampler(train_ds), num_workers=4)
-    val_loader = DataLoader(val_ds, batch_size=32, shuffle=False, num_workers=4)
+    
+    # Using persistent workers to speed up data loading
+    train_loader = DataLoader(train_ds, batch_size=32, sampler=get_sampler(train_ds), num_workers=4, pin_memory=True)
+    val_loader = DataLoader(val_ds, batch_size=32, shuffle=False, num_workers=4, pin_memory=True)
 
-    # Initialize Model
     model = TaxonomyConvNeXt().to(device)
     classifier = MultiHeadCosineClassifier(EMBEDDING_DIM, len(train_ds.families), len(train_ds.genera), len(train_ds.species_classes)).to(device)
     
-    # INCREMENTAL SEEDING LOGIC
-    if checkpoint_path and os.path.exists(checkpoint_path):
+    is_incremental = checkpoint_path and os.path.exists(checkpoint_path)
+
+    if is_incremental:
         print(f"--- Loading and Seeding Old Model ---")
         ckpt = torch.load(checkpoint_path)
         model.load_state_dict(ckpt['model_state'])
         
-        # Map old species centers to new index positions
         old_spec_to_idx = ckpt['class_to_idx']
         old_centers = ckpt['classifier_state']['spec_centers']
         with torch.no_grad():
@@ -178,7 +179,7 @@ def train_incremental(data_root, checkpoint_path=None, epochs=30):
                     classifier.spec_centers[new_idx].copy_(old_centers[old_idx])
 
     optimizer = torch.optim.AdamW([
-        {'params': model.features.parameters(), 'lr': 1e-6 if checkpoint_path else 1e-5},
+        {'params': model.features.parameters(), 'lr': 1e-6 if is_incremental else 1e-5},
         {'params': model.proj.parameters(), 'lr': 1e-4},
         {'params': classifier.parameters(), 'lr': 1e-4}
     ], weight_decay=0.05)
@@ -187,13 +188,32 @@ def train_incremental(data_root, checkpoint_path=None, epochs=30):
     best_acc = 0.0
 
     for epoch in range(epochs):
+        
+        # =====================================================
+        # DYNAMIC FREEZE LOGIC
+        # =====================================================
+        if is_incremental:
+            if epoch < freeze_epochs:
+                if epoch == 0:
+                    print(f"🧊 Epoch 1-{freeze_epochs}: Backbone is FROZEN. Training new species head fast.")
+                for param in model.features.parameters():
+                    param.requires_grad = False
+            elif epoch == freeze_epochs:
+                print(f"🔥 Epoch {epoch+1}: Unfreezing backbone for full fine-tuning.")
+                for param in model.features.parameters():
+                    param.requires_grad = True
+
         model.train(); classifier.train()
-        pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}")
+        pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{epochs}")
         for x, y in pbar:
             x, y = x.to(device), {k: v.to(device) for k, v in y.items()}
             logits = classifier(model(x))
             loss = criterion(logits["family"], y["family"]) + criterion(logits["genus"], y["genus"]) + (2.0 * criterion(logits["species"], y["species"]))
-            optimizer.zero_grad(); loss.backward(); optimizer.step()
+            
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            
             pbar.set_postfix({'loss': f"{loss.item():.4f}"})
 
         # Eval & Save
@@ -208,15 +228,35 @@ def train_incremental(data_root, checkpoint_path=None, epochs=30):
         val_acc = correct / total
         print(f"Validation Acc: {val_acc:.4f}")
 
-        if val_acc > best_acc:
+        if val_acc > (best_acc + min_delta):
+            print(f"🌟 Improved from {best_acc:.4f} to {val_acc:.4f}. Saving...")
             best_acc = val_acc
+            epochs_no_improve = 0
+
             protos = build_prototypes(model, TaxonomicDataset(os.path.join(data_root, "train"), v_trans), device)
             torch.save({
-                'epoch': epoch, 'model_state': model.state_dict(), 'classifier_state': classifier.state_dict(),
-                'prototypes': protos, 'class_to_idx': train_ds.spec_to_idx, 'classes': train_ds.species_classes, 'val_acc': val_acc
-            }, f"models/taxobot_latest.pth")
+                'epoch': epoch, 
+                'model_state': model.state_dict(), 
+                'classifier_state': classifier.state_dict(),
+                'prototypes': protos, 
+                'class_to_idx': train_ds.spec_to_idx, 
+                'classes': train_ds.species_classes, 
+                'val_acc': val_acc
+            }, r"/home/abk/abk/projects/Major-project-basic-ui/models/taxobot_hierarchical_mar21.pth")
+        
+        else:
+            epochs_no_improve += 1
+            print(f"⚠️ No improvement for {epochs_no_improve}/{patience} epochs.")
+
+        if epochs_no_improve >= patience:
+            print(f"🛑 Early Stopping triggered at epoch {epoch+1}. Best Acc: {best_acc:.4f}")
+            break
+        print("✅ Training session complete.")
 
 if __name__ == "__main__":
-    # If it's your FIRST time: checkpoint_path=None
-    # If you are ADDING species: checkpoint_path="models/taxobot_latest.pth"
-    train_incremental(data_root="/media/abk/New Disk/DATASETS/marine_v2", checkpoint_path="models/taxobot_latest.pth")
+    train_incremental(
+        data_root=r"/media/abk/New Disk/DATASETS/marine_v2", 
+        checkpoint_path=None,#r"/home/abk/abk/projects/Major-project-basic-ui/models/taxobot_hierarchical_latest.pth", # Change to None if starting from scratch
+        epochs=50,
+        freeze_epochs=5 # Will freeze backbone for the first 5 epochs
+    )

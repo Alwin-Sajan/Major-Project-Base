@@ -1,0 +1,90 @@
+"Gobiidae": {
+    "Amblyeleotris": {
+        "aurora": 209272, "diagonalis": 209269,"wheeleri": 209274, "latifasciata" : 278972, 
+        "randalli" : 278980, "fontanesii" : 278966, "yanoi" : 278985, "steinitzi" : 209273
+    },
+    "Gobiodon": {
+        "okinawae": 276931, "histrio": 276928, "citrinus": 5208803, "rivulatus": 2378622,
+        "quinquestrigatus": 276933, "erythrospilus": 309999, "ceramensis": 276926, "axillaris": 276924
+    }
+},
+"Serranidae": {
+    "Epinephelus": {
+        "fasciatus": 2388344, "merra": 2388271, "coioides": 2388213, "striatus": 2388300,
+        "guttatus": 2388558, "marginatus": 2388507, "polyphekadion": 2388423, "diacanthus": 2388126
+    },
+    "Cephalopholis": {
+        "argus": 2388891, "miniata": 2381788, "urodeta": 2388881,
+        "sonnerati": 2388907, "cruentata": 2388903, "leoparda": 2388887, "taeniops": 2388910
+    }
+}
+
+{
+    "Acanthuridae": {
+        "Ctenochaetus": {
+            "striatus": 219659,       # Striated Surgeonfish (Extremely abundant)
+            "strigosus": 219660,      # Goldring Bristletooth
+            "binotatus": 219655,      # Twospot Bristletooth
+            "tominiensis": 219661,    # Tomini Surgeonfish
+            "truncatus": 219662,      # Indian Gold-ring Bristletooth
+            "hawaiiensis": 219657,    # Chevron Tang
+            "cyanocheilus": 219656,   # Bluelip Bristletooth
+            "flavicauda": 219658      # Whitetail Bristletooth
+        },
+        "Zebrasoma": {
+            "flavescens": 219679,     # Yellow Tang (Massive image volume)
+            "scopas": 219681,         # Brushtail Tang
+            "veliferum": 219683,      # Sailfin Tang
+            "desjardinii": 219677,    # Red Sea Sailfin Tang
+            "xanthurum": 219684,      # Yellowtail Blue Tang
+            "rostratum": 219680,      # Longnose Tang
+            "gemmatum": 219678,       # Gem Tang
+            "polycanthum": 278013     # Whitespotted Tang
+        },
+        "Paracanthurus": {
+            "hepatus": 219676          # Palette Surgeonfish / Blue Tang
+        }
+        "Acanthurus": {
+            "triostegus": 219630,      # Convict Surgeonfish
+            "lineatus": 159582,       # Lined Surgeonfish
+            "nigrofuscus": 219640,    # Brown Surgeonfish
+            "leucosternon": 219628,   # Powder Blue Tang
+            "dussumieri": 219641,     # Eyestripe Surgeonfish
+            "xanthopterus": 219634,   # Yellowfin Surgeonfish
+            "olivaceus": 219625,      # Orange-band Surgeonfish
+            "pyroferus": 219648       # Chocolate Surgeonfish
+        },
+        "Naso": {
+            "lituratus": 219665,      # Orangespine Unicornfish
+            "unicornis": 219668,      # Bluespine Unicornfish
+            "vlamingii": 219672,      # Bignose Unicornfish
+            #"annulatus": 219673,      # Whitemargin Unicornfish
+            "hexacanthus": 219667,    # Sleek Unicornfish
+            "brachycentron": 219664,  # Humpback Unicornfish
+            "brevirostris": 219671,   # Spotted Unicornfish
+            #"tonganus": 278010        # Bulbnose Unicornfish
+        }
+    },
+    "Chaetodontidae": {
+        "Chaetodon": {
+            "auriga": 218730,         # Threadfin Butterflyfish
+            "lunula": 218733,         # Raccoon Butterflyfish
+            "kleinii": 218738,        # Sunburst Butterflyfish
+            #"vagabundus": 218765,     # Vagabond Butterflyfish
+            #"lineolatus": 218749,     # Lined Butterflyfish
+            "trifascialis": 218719,   # Chevron Butterflyfish
+            "melannotus": 218743,     # Black-back Butterflyfish
+            #"ephippium": 218740       # Saddle Butterflyfish
+        },
+        "Heniochus": {
+            "acuminatus": 218765,     # Longfin Bannerfish
+            "diphreutes": 218763,     # Schooling Bannerfish
+            "monoceros": 218764,      # Masked Bannerfish
+            "chrysostomus": 276748,   # Pennant Bannerfish
+            "varius": 276750,         # Humphead Bannerfish
+            "singularius": 218766,    # Singular Bannerfish
+            "intermedius": 218767,    # Red Sea Bannerfish
+            "pleurotaenia": 276749    # Phantom Bannerfish
+        }
+    }
+}

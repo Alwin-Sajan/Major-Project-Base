@@ -53,9 +53,89 @@ import torch
 # cosine_scores = torch.matmul(emb_net, prototypes.T)
 # print("Cosine scores:", cosine_scores.cpu().numpy())
 
-from sklearn.metrics.pairwise import cosine_similarity
-import numpy as np
+# from sklearn.metrics.pairwise import cosine_similarity
+# import numpy as np
 
-embs = np.load("/home/abk/abk/projects/Major-project-basic-ui/backend/unknown_buffer/embeddings.npy")
-sim = cosine_similarity(embs)
-print(sim.min(), sim.mean(), sim.max())
+# embs = np.load("/home/abk/abk/projects/Major-project-basic-ui/backend/unknown_buffer/embeddings.npy")
+# sim = cosine_similarity(embs)
+# print(sim.min(), sim.mean(), sim.max())
+#--------------------------------------------------------------------------------------------------------------
+
+# import os
+# from PIL import Image, ImageFile
+
+# # This handles the truncated image error we saw earlier
+# ImageFile.LOAD_TRUNCATED_IMAGES = False 
+
+# # YOUR ROOT DIRECTORY
+# root_dir = "/media/abk/New Disk/DATASETS/marine_v2/val"
+
+# def clean_images(directory):
+#     count_deleted = 0
+#     count_scanned = 0
+    
+#     print(f"Starting scan in: {directory}")
+    
+#     # os.walk goes into every subfolder (Acanthuridae -> Acanthurus -> dussumieri, etc.)
+#     for root, dirs, files in os.walk(directory):
+#         for file in files:
+#             # Check for common image extensions
+#             if file.lower().endswith(('.png', '.jpg', '.jpeg', '.tif', '.tiff', '.webp')):
+#                 count_scanned += 1
+#                 file_path = os.path.join(root, file)
+                
+#                 try:
+#                     with Image.open(file_path) as img:
+#                         # 1. Verify the file structure
+#                         img.verify() 
+                        
+#                         # 2. Re-open and try to load the actual pixel data 
+#                         # (verify() alone doesn't always catch truncated bytes)
+#                         img = Image.open(file_path)
+#                         img.load() 
+                        
+#                 except Exception as e:
+#                     print(f"\n[CORRUPT] Deleting: {file_path}")
+#                     print(f"Reason: {e}")
+#                     try:
+#                         os.remove(file_path)
+#                         count_deleted += 1
+#                     except Exception as b:
+#                         print(f"Failed to delete {file_path}: {b}")
+
+#     print("\n" + "="*30)
+#     print(f"Scan Complete!")
+#     print(f"Total Images Scanned: {count_scanned}")
+#     print(f"Total Images Deleted: {count_deleted}")
+#     print("="*30)
+
+# if __name__ == "__main__":
+#     clean_images(root_dir)
+
+#---------------------------------------------------------------------------
+
+
+import os
+from PIL import Image
+
+root_dir = "/media/abk/New Disk/DATASETS/marine_v2/train"
+
+print("🔄 Converting 'Fake JPEGs' to 'Real JPEGs'...")
+
+count = 0
+for root, _, files in os.walk(root_dir):
+    for file in files:
+        file_path = os.path.join(root, file)
+        try:
+            with Image.open(file_path) as img:
+                # If it's a TIFF pretending to be a JPG
+                if img.format == 'TIFF':
+                    # Convert to RGB (standard) and save as a real JPEG
+                    clean_img = img.convert('RGB')
+                    clean_img.save(file_path, "JPEG", quality=95)
+                    print(f"✅ Fixed: {file_path}")
+                    count += 1
+        except Exception as e:
+            print(f"❌ Failed to process {file_path}: {e}")
+
+print(f"\nDone! Fixed {count} images. Your training should be silent now.")
