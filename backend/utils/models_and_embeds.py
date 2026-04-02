@@ -37,7 +37,7 @@ checkpoint = torch.load(CONVNEXT_MODEL_PATH, map_location=device)
 prototypes = checkpoint["prototypes"].to(device)  
 class_names = checkpoint["classes"]
 num_classes = len(class_names)
-
+   
 embedding_net = ConvNeXtIncremental(
     embedding_dim=256,
     pretrained=False

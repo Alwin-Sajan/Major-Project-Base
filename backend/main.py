@@ -25,7 +25,8 @@ routers_list = [
     routers.clustering_router,
     routers.guess_species_router,
     routers.student_router,
-    routers.admin_router
+    routers.admin_router,
+    routers.assitant_router
 ]
 for router in routers_list:
     app.include_router(router=router) 
