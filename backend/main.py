@@ -15,7 +15,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-IMG_DIR =  r"/media/abk/New Disk/DATASETS/clusterdataset" #NOTE:utils.IMG_DIR
+IMG_DIR =  r"D:\clutserdataset" #NOTE:utils.IMG_DIR
 app.mount("/images", StaticFiles(directory=IMG_DIR), name="images")
 
 #app.include_router(chatbot_router) 

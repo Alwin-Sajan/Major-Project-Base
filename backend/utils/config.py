@@ -1,30 +1,30 @@
 # ---- DETECTION MODEL------
-CONVNEXT_MODEL_PATH = "/home/abk/abk/projects/Major-project-basic-ui/models/convnext_5epoch.pth"
+CONVNEXT_MODEL_PATH = r"D:\ASP\Major Project\Project\Major-Project-Base\models\convnext_5epoch.pth"
 
 
 # ---- Trigger thresholds ----
 UNKNOWN_COUNT_THRESHOLD = 200       # Trigger 1
 CLUSTER_TIME_THRESHOLD = 24 * 3600  # Trigger 2 (24 hrs)
-OOD_THRESHOLD = 0.65     # cosine similarity
-MARGIN_THRESHOLD = 0.15 # top1 - top2 gap
+OOD_THRESHOLD = 0.65     # cosine similaritypp
+MARGIN_THRESHOLD = 0.15  # top1 - top2 gap
 
 
 # ---- Paths ----
-UNKNOWN_DIR = "unknown_buffer"
-IMG_DIR = f"{UNKNOWN_DIR}/images"
-EMB_PATH = f"{UNKNOWN_DIR}/embeddings.npy"
-META_PATH = f"{UNKNOWN_DIR}/metadata.json"
-CLUSTER_META_PATH = f"{UNKNOWN_DIR}/clusters.json"
-LAST_CLUSTER_TIME_PATH = f"{UNKNOWN_DIR}/last_cluster_time.txt"
-JSONL_RAG_PATH = r"taxonomy_data/merged_taxonomic_chunks.jsonl"
+UNKNOWN_DIR = r"D:\ASP\Major Project\Project\Major-Project-Base\unknown_buffer"
+IMG_DIR = rf"{UNKNOWN_DIR}\images"
+EMB_PATH = rf"{UNKNOWN_DIR}\embeddings.npy"
+META_PATH = rf"{UNKNOWN_DIR}\metadata.json"
+CLUSTER_META_PATH = rf"{UNKNOWN_DIR}\clusters.json"
+LAST_CLUSTER_TIME_PATH = rf"{UNKNOWN_DIR}\last_cluster_time.txt"
 
-CLUSTER_INCREMENTAL_LEARNING_PATH = r"/media/abk/New Disk/DATASETS/CLUSTER_INCREMENTAL_LEARNING"
-TRIAL_IMG_DIR = r"/media/abk/New Disk/DATASETS/clusterdataset"
+JSONL_RAG_PATH = r"D:\ASP\Major Project\Project\Major-Project-Base\backend\taxonomy_data\merged_taxonomic_chunks.jsonl"
+
+CLUSTER_INCREMENTAL_LEARNING_PATH = r"D:\ASP\Major Project\Project\Major-Project-Base\DATASETS\CLUSTER_INCREMENTAL_LEARNING"
+TRIAL_IMG_DIR = r"D:\ASP\Major Project\Project\Major-Project-Base\DATASETS\clusterdataset"
 
 
-
-DB_FAISS_PATH = r"/home/abk/abk/projects/Major-project-basic-ui/backend/vectorstore/"
-CHAT_TYPE_DETECTION = r"/home/abk/abk/projects/Major-project-basic-ui/backend/vectorstore/chat_type_detection_embed.npz"
+DB_FAISS_PATH = r"D:\ASP\Major Project\Project\Major-Project-Base\backend\vectorstore"
+CHAT_TYPE_DETECTION = r"D:\ASP\Major Project\Project\Major-Project-Base\backend\vectorstore\chat_type_detection_embed.npz"
 
 
 # ----- Models ------

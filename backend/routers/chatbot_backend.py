@@ -58,6 +58,7 @@ llm = ChatOllama(
     model=utils.MODEL_LLAMA,
     temperature=0.0,
     disable_streaming=False,
+    num_gpu=1,
     seed=43,
     #num_predict=100
 )

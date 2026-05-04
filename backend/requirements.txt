@@ -1,0 +1,13 @@
+torch torchvision --index-url https://download.pytorch.org/whl/cu128
+langchain
+python-docx 
+scikit-learn        
+langchain-huggingface  
+langchain-community 
+langchain-ollama   
+fastapi 
+hdbscan
+umap-learn
+matplotlib
+seaborn
+sentence-transformers
